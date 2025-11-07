@@ -1,0 +1,212 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { ArrowLeft, User, Calendar, Mail, LogOut } from 'lucide-react'
+import Link from 'next/link'
+
+interface SkinAnalysis {
+  id: string
+  image_url: string
+  result_summary: string
+  created_at: string
+}
+
+export default function ProfilePage() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [analyses, setAnalyses] = useState<SkinAnalysis[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+      if (!authUser) {
+        router.push('/auth/login')
+        return
+      }
+
+      setUser(authUser)
+
+      // 사용자 프로필 조회
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+
+      setUserProfile(profile || {
+        id: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.name || '',
+      })
+
+      // 분석 기록 조회
+      const { data: analysisData } = await supabase
+        .from('skin_analysis')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (analysisData) {
+        setAnalyses(analysisData)
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">로딩 중...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Link
+          href="/home"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          뒤로가기
+        </Link>
+
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+          <h1 className="text-3xl font-bold text-gray-900">마이페이지</h1>
+
+          {/* 프로필 정보 */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">프로필 정보</h2>
+            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <User className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="text-sm text-gray-600">이름</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {userProfile?.name || '미설정'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="text-sm text-gray-600">이메일</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {userProfile?.email || user?.email}
+                  </p>
+                </div>
+              </div>
+              {userProfile?.birth_date && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">생년월일</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {new Date(userProfile.birth_date).toLocaleDateString(
+                        'ko-KR'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 개인정보 처리 안내 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+              개인정보 처리 안내
+            </h3>
+            <p className="text-xs text-blue-800 leading-relaxed">
+              사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다. 이미지는 사용자가 삭제 요청 시 즉시 파기됩니다.
+            </p>
+          </div>
+
+          {/* 분석 기록 */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">분석 기록</h2>
+            {analyses.length === 0 ? (
+              <div className="bg-gray-50 rounded-xl p-8 text-center">
+                <p className="text-gray-600 mb-4">아직 분석 기록이 없습니다.</p>
+                <Link
+                  href="/analyze"
+                  className="inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                >
+                  첫 분석 시작하기
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {analyses.map((analysis) => (
+                  <Link
+                    key={analysis.id}
+                    href={`/analysis/${analysis.id}`}
+                    className="block bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+                        <img
+                          src={analysis.image_url}
+                          alt="분석 이미지"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-gray-700 mb-2 line-clamp-2">
+                          {analysis.result_summary}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(analysis.created_at).toLocaleDateString(
+                            'ko-KR',
+                            {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            }
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 로그아웃 */}
+          <div className="pt-6 border-t border-gray-200">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              로그아웃
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
