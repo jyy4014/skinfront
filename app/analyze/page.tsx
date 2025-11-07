@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Upload, Loader2, Camera } from 'lucide-react'
 import Link from 'next/link'
 
+// 동적 렌더링 강제 (prerender 방지)
+export const dynamic = 'force-dynamic'
+
 export default function AnalyzePage() {
   const router = useRouter()
   const supabase = createClient()
