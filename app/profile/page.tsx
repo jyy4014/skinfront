@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, User, Calendar, Mail, LogOut } from 'lucide-react'
 import Link from 'next/link'
+import BottomNav from '@/components/BottomNav'
 
 interface SkinAnalysis {
   id: string
@@ -82,23 +83,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Link
-          href="/home"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          뒤로가기
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 pb-20">
+      {/* Header - 모바일 앱 스타일 */}
+      <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40 safe-area-top border-b border-gray-100">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+          <Link
+            href="/home"
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">마이페이지</h1>
+        </div>
+      </header>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-          <h1 className="text-3xl font-bold text-gray-900">마이페이지</h1>
+      <main className="max-w-md mx-auto px-4 py-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
 
           {/* 프로필 정보 */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">프로필 정보</h2>
-            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">프로필 정보</h2>
+            <div className="bg-gray-50 rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <User className="w-5 h-5 text-gray-600" />
                 <div>
@@ -144,8 +149,8 @@ export default function ProfilePage() {
           </div>
 
           {/* 분석 기록 */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">분석 기록</h2>
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">분석 기록</h2>
             {analyses.length === 0 ? (
               <div className="bg-gray-50 rounded-xl p-8 text-center">
                 <p className="text-gray-600 mb-4">아직 분석 기록이 없습니다.</p>
@@ -205,7 +210,10 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   )
 }

@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Warm Beige + Blush Pink + White + Navy (피부 친화 + 신뢰) */
+  --warm-beige: #f5f1eb;
+  --blush-pink: #f8d7da;
+  --navy: #1e3a5f;
 }
 
 @theme inline {
@@ -23,4 +27,29 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* 모바일 앱 스타일 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* Safe area 처리 (iOS notch 등) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 모바일 터치 최적화 */
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 스크롤 최적화 */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }

@@ -21,9 +21,12 @@ export default function RecommendedTreatments() {
 
   const fetchTreatments = async () => {
     try {
+      // 트렌드 점수와 인기도 점수 기반으로 정렬하여 상위 3개 가져오기
       const { data, error } = await supabase
         .from('treatments')
-        .select('id, name, description')
+        .select('id, name, description, trend_score, popularity_score')
+        .order('trend_score', { ascending: false })
+        .order('popularity_score', { ascending: false })
         .limit(3)
 
       if (error) throw error
@@ -31,20 +34,20 @@ export default function RecommendedTreatments() {
       if (data && data.length > 0) {
         setTreatments(data as Treatment[])
       } else {
-        // 샘플 데이터
+        // 샘플 데이터 (2025년 인기 시술)
         setTreatments([
-          { id: '1', name: '프락셀 레이저', description: '모공 및 잡티 개선' },
-          { id: '2', name: '토닝 레이저', description: '피부톤 균일화' },
-          { id: '3', name: '리쥬란 힐러', description: '주름 개선 및 탄력 향상' },
+          { id: '1', name: '리쥬란 힐러', description: '주름 개선 및 탄력 향상 (2025 인기 1위)' },
+          { id: '2', name: '프락셀 레이저', description: '모공 및 잡티 개선 (2025 인기 2위)' },
+          { id: '3', name: '하이푸', description: '피부 탄력 개선 및 리프팅 (2025 인기 3위)' },
         ])
       }
     } catch (error) {
       console.error('Error fetching treatments:', error)
-      // 샘플 데이터
+      // 샘플 데이터 (2025년 인기 시술)
       setTreatments([
-        { id: '1', name: '프락셀 레이저', description: '모공 및 잡티 개선' },
-        { id: '2', name: '토닝 레이저', description: '피부톤 균일화' },
-        { id: '3', name: '리쥬란 힐러', description: '주름 개선 및 탄력 향상' },
+        { id: '1', name: '리쥬란 힐러', description: '주름 개선 및 탄력 향상 (2025 인기 1위)' },
+        { id: '2', name: '프락셀 레이저', description: '모공 및 잡티 개선 (2025 인기 2위)' },
+        { id: '3', name: '하이푸', description: '피부 탄력 개선 및 리프팅 (2025 인기 3위)' },
       ])
     } finally {
       setLoading(false)

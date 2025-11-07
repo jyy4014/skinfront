@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import BottomNav from '@/components/BottomNav'
 
 export default function AnalysisDetailPage() {
   const params = useParams()
@@ -71,22 +72,24 @@ export default function AnalysisDetailPage() {
   const recommendations = analysis.recommended_treatments || []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Link
-          href="/home"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          뒤로가기
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 pb-20">
+      {/* Header - 모바일 앱 스타일 */}
+      <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40 safe-area-top border-b border-gray-100">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+          <Link
+            href="/home"
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">분석 결과</h1>
+        </div>
+      </header>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+      <main className="max-w-md mx-auto px-4 py-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              분석 결과
-            </h1>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-500 mb-2">
               {new Date(analysis.created_at).toLocaleDateString('ko-KR', {
                 year: 'numeric',
                 month: 'long',
@@ -154,7 +157,64 @@ export default function AnalysisDetailPage() {
             </div>
           </div>
 
-          {recommendations.length > 0 && (
+          {/* 증상 기반 추천 시술 */}
+          {analysisData.analysis_b?.treatment_candidates && analysisData.analysis_b.treatment_candidates.length > 0 ? (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                당신의 피부 증상에 맞춘 추천
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                아래 시술은 이 분석 결과를 바탕으로 추천되었습니다. (증상 기반 순위)
+              </p>
+              <div className="space-y-3">
+                {analysisData.analysis_b.treatment_candidates
+                  .sort((a: any, b: any) => (b.score || 0) - (a.score || 0)) // 증상 기반 점수로 정렬
+                  .map((treatment: any, idx: number) => (
+                  <Link
+                    key={idx}
+                    href={`/treatments/${treatment.id}`}
+                    className="block border-2 border-gray-200 rounded-xl p-4 hover:border-pink-500 hover:shadow-md transition-all active:scale-[0.98]"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-gray-900 text-base">
+                            {treatment.name}
+                          </h4>
+                          {idx === 0 && (
+                            <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">
+                              최적 추천
+                            </span>
+                          )}
+                        </div>
+                        {/* 증상 기반 적합도 점수 표시 */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-gray-500">증상 적합도:</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-1.5 max-w-[120px]">
+                            <div
+                              className="bg-pink-500 h-1.5 rounded-full transition-all"
+                              style={{ width: `${(treatment.score || 0) * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">
+                            {Math.round((treatment.score || 0) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-pink-600 ml-2">
+                        예상 개선 {Math.round((treatment.expected_improvement_pct || 0) * 100)}%
+                      </span>
+                    </div>
+                    {treatment.notes && treatment.notes.length > 0 && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        {treatment.notes.join(', ')}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : recommendations.length > 0 ? (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 추천 시술
@@ -176,7 +236,7 @@ export default function AnalysisDetailPage() {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <p className="text-xs text-blue-800 leading-relaxed">
@@ -184,22 +244,25 @@ export default function AnalysisDetailPage() {
             </p>
           </div>
 
-          <div className="flex gap-4">
-            <Link
-              href="/home"
-              className="flex-1 text-center py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-            >
-              홈으로
-            </Link>
+          <div className="space-y-3">
             <Link
               href="/analyze"
-              className="flex-1 text-center py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+              className="block w-full text-center py-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all active:scale-95"
             >
               새로 분석하기
             </Link>
+            <Link
+              href="/home"
+              className="block w-full text-center py-3 border-2 border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition-colors active:scale-95"
+            >
+              홈으로 돌아가기
+            </Link>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   )
 }
