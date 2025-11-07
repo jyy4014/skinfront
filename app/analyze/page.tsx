@@ -71,16 +71,18 @@ export default function AnalyzePage() {
         data: { publicUrl },
       } = supabase.storage.from('skin-images').getPublicUrl(filePath)
 
-      // 3. AI 분석 API 호출 (백엔드 서버)
+      // 3. AI 분석 API 호출 (Supabase Edge Functions)
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+      const API_URL = `${SUPABASE_URL}/functions/v1/analyze`
 
-      const response = await fetch(`${API_URL}/api/analyze`, {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           image_url: publicUrl,
@@ -96,11 +98,12 @@ export default function AnalyzePage() {
 
       const result = await response.json()
 
-      // 4. 결과를 DB에 저장 (백엔드 서버) - 3단계 파이프라인 결과
-      const saveResponse = await fetch(`${API_URL}/api/analyze/save`, {
+      // 4. 결과를 DB에 저장 (Supabase Edge Functions) - 3단계 파이프라인 결과
+      const saveResponse = await fetch(`${API_URL}/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           user_id: user.id,
