@@ -131,8 +131,9 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                <label className="flex-1 cursor-pointer">
+                <label className="flex-1 cursor-pointer" htmlFor="camera-input">
                   <input
+                    id="camera-input"
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -141,12 +142,13 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500 pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
                   </div>
                 </label>
-                <label className="flex-1 cursor-pointer">
+                <label className="flex-1 cursor-pointer" htmlFor="gallery-input">
                   <input
+                    id="gallery-input"
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
@@ -154,7 +156,7 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500 pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
                   </div>
                 </label>
