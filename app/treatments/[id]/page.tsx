@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabaseClient'
 import { ArrowLeft, Clock, DollarSign, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 

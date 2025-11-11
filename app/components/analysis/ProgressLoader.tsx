@@ -37,7 +37,12 @@ export default function AnalysisLoading({ step }: AnalysisLoadingProps) {
   const progress = ((currentStepIndex + 1) / steps.length) * 100
 
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 rounded-2xl p-8">
+    <div 
+      className="min-h-[60vh] flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 rounded-2xl p-8"
+      role="status"
+      aria-live="polite"
+      aria-label="AI 분석 진행 중"
+    >
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -45,13 +50,14 @@ export default function AnalysisLoading({ step }: AnalysisLoadingProps) {
         className="text-center space-y-6 w-full"
       >
         {/* 로딩 애니메이션 - 얼굴 outline 점점 선명하게 완성되는 라인 드로잉 */}
-        <div className="relative w-40 h-40 mx-auto">
+        <div className="relative w-40 h-40 mx-auto" aria-hidden="true">
           {/* 얼굴 윤곽 - 점점 선명하게 */}
           <motion.svg
             width="160"
             height="160"
             viewBox="0 0 160 160"
             className="absolute inset-0"
+            aria-hidden="true"
           >
             {/* 얼굴 윤곽 (타원형) */}
             <motion.ellipse
@@ -118,14 +124,14 @@ export default function AnalysisLoading({ step }: AnalysisLoadingProps) {
               animate={{ rotate: 360 }}
               transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             >
-              <Sparkles className="w-12 h-12 text-pink-500" />
+              <Sparkles className="w-12 h-12 text-pink-500" aria-hidden="true" />
             </motion.div>
           </div>
         </div>
 
         {/* 진행 단계 표시 */}
         <div className="space-y-3">
-          <h3 className="text-xl font-bold text-gray-900">
+          <h3 className="text-xl font-bold text-gray-900" aria-live="polite">
             {currentStep.message}
           </h3>
           <p className="text-sm text-gray-600 leading-relaxed">

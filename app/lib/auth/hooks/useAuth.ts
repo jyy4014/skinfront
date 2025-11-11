@@ -1,0 +1,74 @@
+/**
+ * 인증 상태 관리 훅
+ */
+
+import { useState, useEffect } from 'react'
+import { createClient } from '../../supabaseClient'
+import type { User } from '@supabase/supabase-js'
+
+export interface UseAuthReturn {
+  user: User | null
+  isAuthenticated: boolean
+  loading: boolean
+  error: Error | null
+  refresh: () => Promise<void>
+}
+
+/**
+ * 현재 사용자 정보 및 인증 상태를 관리하는 훅
+ */
+export function useAuth(): UseAuthReturn {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const supabase = createClient()
+
+  const fetchUser = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const {
+        data: { user: currentUser },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) {
+        throw userError
+      }
+
+      setUser(currentUser)
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUser()
+
+    // 인증 상태 변경 감지
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  return {
+    user,
+    isAuthenticated: !!user,
+    loading,
+    error,
+    refresh: fetchUser,
+  }
+}
+

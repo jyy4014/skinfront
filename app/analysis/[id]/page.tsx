@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabaseClient'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import BottomNav from '@/components/BottomNav'
+import BottomNav from '@/app/components/common/BottomNav'
 
 export default function AnalysisDetailPage() {
   const params = useParams()

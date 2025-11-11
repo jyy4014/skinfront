@@ -1,68 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Camera, History } from 'lucide-react'
 import Link from 'next/link'
-import RecommendedTreatments from '@/components/RecommendedTreatments'
-import BottomNav from '@/components/BottomNav'
-
-interface SkinAnalysis {
-  id: string
-  image_url: string
-  result_summary: string
-  created_at: string
-}
+import RecommendedTreatments from '@/app/components/home/RecommendedTreatments'
+import BottomNav from '@/app/components/common/BottomNav'
+import { useAnalysisHistory } from '@/app/hooks/useAnalysisHistory'
+import { useAuth } from '@/app/lib/auth'
 
 export default function HomePage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
-  const [recentAnalysis, setRecentAnalysis] = useState<SkinAnalysis | null>(null)
-  const [loading, setLoading] = useState(true)
+  // 사용자 정보 조회 (통합 인증 모듈 사용)
+  const { user, loading: authLoading } = useAuth()
 
-  useEffect(() => {
-    checkUser()
-    fetchRecentAnalysis()
-  }, [])
+  // 최근 분석 결과 조회
+  const { data: analyses, isLoading } = useAnalysisHistory(1)
+  const recentAnalysis = analyses && analyses.length > 0 ? analyses[0] : null
 
-  const checkUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-    setUser(user)
-    setLoading(false)
-  }
-
-  const fetchRecentAnalysis = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data, error } = await supabase
-      .from('skin_analysis')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    if (data && data.length > 0 && !error) {
-      setRecentAnalysis(data[0])
-    }
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-  }
-
-  if (loading) {
+  if (!user || authLoading || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-gray-600">로딩 중...</div>
@@ -88,9 +41,10 @@ export default function HomePage() {
           </p>
           <Link
             href="/analyze"
-            className="flex items-center justify-center gap-2 bg-white text-pink-600 px-6 py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition-transform"
+            className="flex items-center justify-center gap-2 bg-white text-pink-600 px-6 py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition-transform focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
+            aria-label="피부 분석을 위해 사진 업로드하기"
           >
-            <Camera className="w-5 h-5" />
+            <Camera className="w-5 h-5" aria-hidden="true" />
             사진 업로드하기
           </Link>
           <p className="text-xs text-pink-100 mt-4 opacity-90 leading-relaxed">
@@ -107,7 +61,11 @@ export default function HomePage() {
                 최근 분석 결과
               </h3>
             </div>
-            <Link href={`/analysis/${recentAnalysis.id}`}>
+            <Link 
+              href={`/analysis/${recentAnalysis.id}`}
+              className="focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded-xl"
+              aria-label={`최근 분석 결과 보기: ${recentAnalysis.result_summary}`}
+            >
               <div className="flex gap-4 active:scale-[0.98] transition-transform">
                 <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                   <img
@@ -125,7 +83,7 @@ export default function HomePage() {
                       'ko-KR'
                     )}
                   </p>
-                  <span className="text-pink-600 text-sm font-medium mt-2 inline-block">
+                  <span className="text-pink-600 text-sm font-medium mt-2 inline-block" aria-hidden="true">
                     자세히 보기 →
                   </span>
                 </div>
