@@ -213,7 +213,7 @@ export function useUploadFlow() {
         mapping: analysisResult.mapping,
         nlg: analysisResult.nlg,
         review_needed: analysisResult.review_needed,
-        id: saveResult.data.id,
+        id: saveResult.id,
       }
     } catch (error) {
       setProgress(null)
