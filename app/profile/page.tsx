@@ -1,77 +1,37 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabaseClient'
+import { useAuth } from '@/app/lib/auth'
+import { useUserProfile, useAnalysisHistory } from '@/app/lib/data'
 import { ArrowLeft, User, Calendar, Mail, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
 
-interface SkinAnalysis {
-  id: string
-  image_url: string
-  result_summary: string
-  created_at: string
-}
-
 export default function ProfilePage() {
   const router = useRouter()
   const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [analyses, setAnalyses] = useState<SkinAnalysis[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const { data: userProfileData, isLoading: profileLoading } = useUserProfile()
+  const { data: analyses, isLoading: analysesLoading } = useAnalysisHistory({
+    filters: { limit: 10 },
+  })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
-      if (!authUser) {
-        router.push('/auth/login')
-        return
-      }
-
-      setUser(authUser)
-
-      // 사용자 프로필 조회
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
-      setUserProfile(profile || {
-        id: authUser.id,
-        email: authUser.email,
-        name: authUser.user_metadata?.name || '',
-      })
-
-      // 분석 기록 조회
-      const { data: analysisData } = await supabase
-        .from('skin_analysis')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (analysisData) {
-        setAnalyses(analysisData)
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error)
-    } finally {
-      setLoading(false)
-    }
+  const loading = profileLoading || analysesLoading
+  const userProfile = userProfileData?.profile || {
+    id: user?.id,
+    email: user?.email,
+    name: userProfileData?.user_metadata?.name || '',
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/auth/login')
+  }
+
+  if (!user) {
+    router.push('/auth/login')
+    return null
   }
 
   if (loading) {
@@ -151,7 +111,7 @@ export default function ProfilePage() {
           {/* 분석 기록 */}
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-gray-900">분석 기록</h2>
-            {analyses.length === 0 ? (
+            {!analyses || analyses.length === 0 ? (
               <div className="bg-gray-50 rounded-xl p-8 text-center">
                 <p className="text-gray-600 mb-4">아직 분석 기록이 없습니다.</p>
                 <Link
@@ -163,7 +123,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {analyses.map((analysis) => (
+                {analyses?.map((analysis: any) => (
                   <Link
                     key={analysis.id}
                     href={`/analysis/${analysis.id}`}

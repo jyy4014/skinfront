@@ -9,7 +9,7 @@ import AnalysisLoading from '@/app/components/analysis/ProgressLoader'
 import UploadForm from '@/app/features/upload/UploadForm'
 import ResultView from '@/app/features/analysis/ResultView'
 import Button from '@/app/components/ui/Button'
-import { useUploadFlow } from '@/app/hooks/useUploadFlow'
+import { useAnalysisFlow } from '@/app/features/analysis/hooks'
 import { useToast } from '@/app/hooks/useToast'
 import { classifyError, ErrorType } from '@/app/lib/error'
 
@@ -24,7 +24,7 @@ export default function AnalyzePage() {
   const [analysisResult, setAnalysisResult] = useState<any>(null)
   const [faceDetected, setFaceDetected] = useState<boolean>(false)
   
-  const { uploadAndAnalyze, loading, error, progress } = useUploadFlow()
+  const { uploadAndAnalyze, loading, error, progress } = useAnalysisFlow()
   const toast = useToast()
 
   const handleImageSelect = (file: File) => {

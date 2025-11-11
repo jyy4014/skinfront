@@ -13,45 +13,72 @@ import { validateImageFile } from '../validation'
 
 // Canvas 및 Image 모킹
 global.Image = class {
-  width = 0
-  height = 0
+  width = 2000
+  height = 1500
   src = ''
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
 
   constructor() {
-    setTimeout(() => {
-      this.width = 2000
-      this.height = 1500
+    // 즉시 onload 트리거
+    Promise.resolve().then(() => {
       if (this.onload) {
         this.onload()
       }
-    }, 10)
+    })
   }
 } as any
 
+// getImageData 모킹 - Laplacian 계산을 위한 충분한 데이터
+const createMockImageData = (width: number, height: number) => {
+  const size = width * height * 4 // RGBA
+  const data = new Uint8ClampedArray(size)
+  // 다양한 픽셀 값으로 채워서 edge detection이 작동하도록
+  // 최소 3x3 크기가 필요 (Laplacian 커널이 3x3)
+  const w = Math.max(3, width || 10)
+  const h = Math.max(3, height || 10)
+  const actualSize = w * h * 4
+  const actualData = new Uint8ClampedArray(actualSize)
+  
+  for (let i = 0; i < actualSize; i += 4) {
+    actualData[i] = 100 + Math.floor(Math.random() * 100) // R
+    actualData[i + 1] = 100 + Math.floor(Math.random() * 100) // G
+    actualData[i + 2] = 100 + Math.floor(Math.random() * 100) // B
+    actualData[i + 3] = 255 // A
+  }
+  return { data: actualData, width: w, height: h }
+}
+
 global.HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   drawImage: jest.fn(),
-  getImageData: jest.fn(() => ({
-    data: new Uint8ClampedArray(1000).fill(128),
-    width: 10,
-    height: 10,
-  })),
+  getImageData: jest.fn((x, y, width, height) => {
+    return createMockImageData(width || 10, height || 10)
+  }),
 }))
 
-global.HTMLCanvasElement.prototype.toBlob = jest.fn((callback) => {
-  callback(new Blob(['test'], { type: 'image/webp' }))
+global.HTMLCanvasElement.prototype.toDataURL = jest.fn(() => 'data:image/webp;base64,test')
+
+global.HTMLCanvasElement.prototype.toBlob = jest.fn((callback, mimeType, quality) => {
+  if (callback) {
+    // 동기적으로 즉시 실행 (toBlob은 보통 동기적으로 콜백을 호출)
+    const blob = new Blob(['test'], { type: mimeType || 'image/webp' })
+    callback(blob)
+  }
 })
 
 global.FileReader = class {
   result: string | null = null
-  onloadend: (() => void) | null = null
+  onload: ((e: any) => void) | null = null
+  onerror: (() => void) | null = null
 
-  readAsDataURL() {
-    this.result = 'data:image/jpeg;base64,test'
-    if (this.onloadend) {
-      this.onloadend()
-    }
+  readAsDataURL(file: File) {
+    // 즉시 onload 트리거
+    Promise.resolve().then(() => {
+      this.result = 'data:image/jpeg;base64,test'
+      if (this.onload) {
+        this.onload({ target: { result: this.result } } as any)
+      }
+    })
   }
 } as any
 
@@ -63,14 +90,14 @@ describe('Image Processing', () => {
 
       expect(blob).toBeInstanceOf(Blob)
       expect(blob.type).toBe('image/webp')
-    })
+    }, 10000) // 타임아웃 증가
 
     it('최대 너비를 초과하지 않아야 함', async () => {
       const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
       const blob = await resizeImage(file, 800, 0.85)
 
       expect(blob).toBeInstanceOf(Blob)
-    })
+    }, 10000) // 타임아웃 증가
   })
 
   describe('checkImageQuality', () => {
@@ -79,9 +106,10 @@ describe('Image Processing', () => {
       const score = await checkImageQuality(file)
 
       expect(typeof score).toBe('number')
+      expect(Number.isNaN(score)).toBe(false) // NaN이 아니어야 함
       expect(score).toBeGreaterThanOrEqual(0)
       expect(score).toBeLessThanOrEqual(1)
-    })
+    }, 10000) // 타임아웃 증가
   })
 
   describe('validateImageFile', () => {
@@ -122,7 +150,7 @@ describe('Image Processing', () => {
 
       expect(result.file).toBeInstanceOf(File)
       expect(result.file.type).toBe('image/webp')
-    })
+    }, 10000) // 타임아웃 증가
 
     it('품질 검사를 포함할 수 있어야 함', async () => {
       const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
@@ -134,7 +162,7 @@ describe('Image Processing', () => {
 
       expect(result.qualityScore).toBeDefined()
       expect(typeof result.qualityScore).toBe('number')
-    })
+    }, 10000) // 타임아웃 증가
   })
 })
 

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabaseClient'
+import { useAnalysisById } from '@/app/lib/data'
+import { useAuth } from '@/app/lib/auth'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
@@ -10,38 +10,14 @@ import BottomNav from '@/app/components/common/BottomNav'
 export default function AnalysisDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const supabase = createClient()
-  const [analysis, setAnalysis] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const { data: analysis, isLoading: loading, error } = useAnalysisById(
+    params.id as string
+  )
 
-  useEffect(() => {
-    fetchAnalysis()
-  }, [params.id])
-
-  const fetchAnalysis = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('skin_analysis')
-        .select('*')
-        .eq('id', params.id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) throw error
-      setAnalysis(data)
-    } catch (error) {
-      console.error('Error fetching analysis:', error)
-    } finally {
-      setLoading(false)
-    }
+  if (!user) {
+    router.push('/auth/login')
+    return null
   }
 
   if (loading) {

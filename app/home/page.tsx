@@ -4,7 +4,7 @@ import { Camera, History } from 'lucide-react'
 import Link from 'next/link'
 import RecommendedTreatments from '@/app/components/home/RecommendedTreatments'
 import BottomNav from '@/app/components/common/BottomNav'
-import { useAnalysisHistory } from '@/app/hooks/useAnalysisHistory'
+import { useAnalysisHistory } from '@/app/lib/data'
 import { useAuth } from '@/app/lib/auth'
 
 export default function HomePage() {
@@ -12,7 +12,9 @@ export default function HomePage() {
   const { user, loading: authLoading } = useAuth()
 
   // 최근 분석 결과 조회
-  const { data: analyses, isLoading } = useAnalysisHistory(1)
+  const { data: analyses, isLoading } = useAnalysisHistory({
+    filters: { limit: 1 },
+  })
   const recentAnalysis = analyses && analyses.length > 0 ? analyses[0] : null
 
   if (!user || authLoading || isLoading) {
