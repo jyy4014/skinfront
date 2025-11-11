@@ -117,63 +117,52 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
             </p>
           </div>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500 focus-within:ring-offset-2">
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="sr-only"
-                disabled={processing}
-                aria-label="피부 사진 업로드"
-                aria-describedby="upload-description"
-              />
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-purple-100 rounded-full flex items-center justify-center" aria-hidden="true">
-                  <Camera className="w-10 h-10 text-pink-600" />
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-gray-900 mb-2">
-                    사진을 업로드하세요
-                  </p>
-                  <p id="upload-description" className="text-gray-600 text-sm mb-2">
-                    얼굴이 잘 보이는 사진을 선택해주세요
-                  </p>
-                </div>
-                <div className="flex gap-3 w-full">
-                  <label className="flex-1 cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleFileChange}
-                      className="sr-only"
-                      disabled={processing}
-                      aria-label="카메라로 사진 촬영"
-                    />
-                    <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
-                      <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
-                    </div>
-                  </label>
-                  <label className="flex-1 cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="sr-only"
-                      disabled={processing}
-                      aria-label="갤러리에서 사진 선택"
-                    />
-                    <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
-                      <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
-                    </div>
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500 mt-2" role="note">
-                  사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
+          <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-pink-500 transition-colors">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-purple-100 rounded-full flex items-center justify-center" aria-hidden="true">
+                <Camera className="w-10 h-10 text-pink-600" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-gray-900 mb-2">
+                  사진을 업로드하세요
+                </p>
+                <p id="upload-description" className="text-gray-600 text-sm mb-2">
+                  얼굴이 잘 보이는 사진을 선택해주세요
                 </p>
               </div>
-            </label>
+              <div className="flex gap-3 w-full">
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileChange}
+                    className="sr-only"
+                    disabled={processing}
+                    aria-label="카메라로 사진 촬영"
+                  />
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
+                    <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
+                  </div>
+                </label>
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="sr-only"
+                    disabled={processing}
+                    aria-label="갤러리에서 사진 선택"
+                  />
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
+                    <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
+                  </div>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2" role="note">
+                사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
+              </p>
+            </div>
           </div>
         </div>
       ) : (
