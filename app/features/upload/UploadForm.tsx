@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Camera, Upload, AlertCircle } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
@@ -23,6 +23,8 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [faceDetectionMessage, setFaceDetectionMessage] = useState<string | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -131,9 +133,20 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                <label className="flex-1 cursor-pointer" htmlFor="camera-input">
+                <div
+                  className="flex-1 cursor-pointer"
+                  onClick={() => cameraInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      cameraInputRef.current?.click()
+                    }
+                  }}
+                >
                   <input
-                    id="camera-input"
+                    ref={cameraInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -142,13 +155,24 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500 pointer-events-none">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
                   </div>
-                </label>
-                <label className="flex-1 cursor-pointer" htmlFor="gallery-input">
+                </div>
+                <div
+                  className="flex-1 cursor-pointer"
+                  onClick={() => galleryInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      galleryInputRef.current?.click()
+                    }
+                  }}
+                >
                   <input
-                    id="gallery-input"
+                    ref={galleryInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
@@ -156,10 +180,10 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500 pointer-events-none">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
                   </div>
-                </label>
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-2" role="note">
                 사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
