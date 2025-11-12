@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Camera, Upload, AlertCircle } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
@@ -23,9 +23,6 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [faceDetectionMessage, setFaceDetectionMessage] = useState<string | null>(null)
-  
-  const cameraInputRef = useRef<HTMLInputElement>(null)
-  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -135,43 +132,30 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                {/* 카메라 버튼 */}
-                <label
-                  htmlFor="camera-input"
-                  className={`flex-1 cursor-pointer ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+                <label className="flex-1 cursor-pointer">
                   <input
-                    ref={cameraInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={processing}
-                    id="camera-input"
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
                   </div>
                 </label>
-                
-                {/* 갤러리 버튼 */}
-                <label
-                  htmlFor="gallery-input"
-                  className={`flex-1 cursor-pointer ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+                <label className="flex-1 cursor-pointer">
                   <input
-                    ref={galleryInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={processing}
-                    id="gallery-input"
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
                   </div>
                 </label>
