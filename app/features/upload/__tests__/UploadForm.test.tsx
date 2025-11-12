@@ -14,8 +14,8 @@ import '@testing-library/jest-dom'
 import UploadForm from '../UploadForm'
 
 // Mock hooks
-jest.mock('../../../hooks/useImageResize', () => ({
-  useImageResize: () => ({
+jest.mock('../../../lib/image', () => ({
+  useImageProcessor: () => ({
     processImage: jest.fn().mockResolvedValue({
       file: new File(['test'], 'test.jpg', { type: 'image/jpeg' }),
     }),

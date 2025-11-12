@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Camera, Upload, AlertCircle } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
-import { useImageResize } from '@/app/hooks/useImageResize'
+import { useImageProcessor } from '@/app/lib/image'
 import { useFaceDetection } from '@/app/hooks/useFaceDetection'
 
 interface UploadFormProps {
@@ -14,10 +14,11 @@ interface UploadFormProps {
 }
 
 export default function UploadForm({ onFileSelect, preview, onFaceDetectionResult }: UploadFormProps) {
-  const { processImage, processing, error: processingError } = useImageResize({
+  const { processImage, processing, error: processingError } = useImageProcessor({
     maxWidth: 1024,
     quality: 0.85,
     checkQuality: false,
+    autoValidate: true,
   })
 
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
@@ -34,7 +35,8 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
 
     try {
       // 이미지 전처리 (리사이즈, WebP 변환, 품질 검사)
-      const { file: processedFile } = await processImage(file)
+      const result = await processImage(file)
+      const processedFile = result.file
       
       // 얼굴 감지 실행
       setFaceDetected(null)
