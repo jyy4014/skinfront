@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Camera, Upload, AlertCircle } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
@@ -23,6 +23,8 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [faceDetectionMessage, setFaceDetectionMessage] = useState<string | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -131,8 +133,15 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                <label className="flex-1 cursor-pointer">
+                <label 
+                  className="flex-1 cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    cameraInputRef.current?.click()
+                  }}
+                >
                   <input
+                    ref={cameraInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -145,8 +154,15 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
                   </div>
                 </label>
-                <label className="flex-1 cursor-pointer">
+                <label 
+                  className="flex-1 cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    galleryInputRef.current?.click()
+                  }}
+                >
                   <input
+                    ref={galleryInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
