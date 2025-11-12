@@ -50,7 +50,7 @@ describe('UploadForm', () => {
     jest.restoreAllMocks()
   })
 
-  it('갤러리 버튼 클릭 시 파일 input이 클릭되어야 함', () => {
+  it('갤러리 label 클릭 시 파일 input이 클릭되어야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -59,17 +59,17 @@ describe('UploadForm', () => {
     )
 
     const galleryInput = screen.getByLabelText('갤러리에서 사진 선택')
-    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
+    const galleryLabel = screen.getByText('🖼️ 갤러리').closest('label')
     
     expect(galleryInput).toBeInTheDocument()
-    expect(galleryButton).toBeInTheDocument()
+    expect(galleryLabel).toBeInTheDocument()
 
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(galleryInput, 'click')
 
-    // Click on button
-    if (galleryButton) {
-      fireEvent.click(galleryButton)
+    // Click on label (label automatically triggers input click)
+    if (galleryLabel) {
+      fireEvent.click(galleryLabel)
     }
 
     // Verify input.click() was called
@@ -77,7 +77,7 @@ describe('UploadForm', () => {
     clickSpy.mockRestore()
   })
 
-  it('카메라 버튼 클릭 시 파일 input이 클릭되어야 함', () => {
+  it('카메라 label 클릭 시 파일 input이 클릭되어야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -86,17 +86,17 @@ describe('UploadForm', () => {
     )
 
     const cameraInput = screen.getByLabelText('카메라로 사진 촬영')
-    const cameraButton = screen.getByText('📸 촬영하기').closest('button')
+    const cameraLabel = screen.getByText('📸 촬영하기').closest('label')
     
     expect(cameraInput).toBeInTheDocument()
-    expect(cameraButton).toBeInTheDocument()
+    expect(cameraLabel).toBeInTheDocument()
 
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(cameraInput, 'click')
 
-    // Click on button
-    if (cameraButton) {
-      fireEvent.click(cameraButton)
+    // Click on label (label automatically triggers input click)
+    if (cameraLabel) {
+      fireEvent.click(cameraLabel)
     }
 
     // Verify input.click() was called
@@ -104,7 +104,7 @@ describe('UploadForm', () => {
     clickSpy.mockRestore()
   })
 
-  it('버튼의 onClick 핸들러가 input.click()을 호출해야 함', () => {
+  it('label 클릭이 input.click()을 트리거해야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -113,20 +113,20 @@ describe('UploadForm', () => {
     )
 
     const galleryInput = screen.getByLabelText('갤러리에서 사진 선택') as HTMLInputElement
-    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
+    const galleryLabel = screen.getByText('🖼️ 갤러리').closest('label')
     
-    expect(galleryButton).toBeInTheDocument()
+    expect(galleryLabel).toBeInTheDocument()
     
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(galleryInput, 'click').mockImplementation(() => {
       console.log('[TEST DEBUG] input.click() called')
     })
 
-    // Simulate click event on button
-    if (galleryButton) {
-      fireEvent.click(galleryButton)
+    // Simulate click event on label
+    if (galleryLabel) {
+      fireEvent.click(galleryLabel)
 
-      // Verify input.click() was called
+      // Verify input.click() was called (label automatically triggers input)
       expect(clickSpy).toHaveBeenCalled()
     }
 
@@ -189,7 +189,7 @@ describe('UploadForm', () => {
     expect(cameraInput.type).toBe('file')
   })
 
-  it('버튼이 올바르게 렌더링되어야 함', () => {
+  it('label이 올바르게 렌더링되고 input과 연결되어야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -197,13 +197,17 @@ describe('UploadForm', () => {
       />
     )
 
-    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
-    const cameraButton = screen.getByText('📸 촬영하기').closest('button')
+    const galleryLabel = screen.getByText('🖼️ 갤러리').closest('label')
+    const cameraLabel = screen.getByText('📸 촬영하기').closest('label')
+    const galleryInput = screen.getByLabelText('갤러리에서 사진 선택')
+    const cameraInput = screen.getByLabelText('카메라로 사진 촬영')
 
-    expect(galleryButton).toBeInTheDocument()
-    expect(cameraButton).toBeInTheDocument()
-    expect(galleryButton).toHaveAttribute('type', 'button')
-    expect(cameraButton).toHaveAttribute('type', 'button')
+    expect(galleryLabel).toBeInTheDocument()
+    expect(cameraLabel).toBeInTheDocument()
+    expect(galleryInput).toBeInTheDocument()
+    expect(cameraInput).toBeInTheDocument()
+    expect(galleryLabel).toHaveAttribute('htmlFor', 'gallery-input')
+    expect(cameraLabel).toHaveAttribute('htmlFor', 'camera-input')
   })
 })
 

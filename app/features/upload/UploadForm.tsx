@@ -77,13 +77,6 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
     }
   }
 
-  const handleCameraClick = () => {
-    cameraInputRef.current?.click()
-  }
-
-  const handleGalleryClick = () => {
-    galleryInputRef.current?.click()
-  }
 
   return (
     <Card className="p-6">
@@ -143,7 +136,10 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
               </div>
               <div className="flex gap-3 w-full">
                 {/* 카메라 버튼 */}
-                <div className="flex-1">
+                <label
+                  htmlFor="camera-input"
+                  className={`flex-1 cursor-pointer ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
                   <input
                     ref={cameraInputRef}
                     type="file"
@@ -155,18 +151,16 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     id="camera-input"
                     aria-label="카메라로 사진 촬영"
                   />
-                  <button
-                    type="button"
-                    onClick={handleCameraClick}
-                    disabled={processing}
-                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
-                  </button>
-                </div>
+                  </div>
+                </label>
                 
                 {/* 갤러리 버튼 */}
-                <div className="flex-1">
+                <label
+                  htmlFor="gallery-input"
+                  className={`flex-1 cursor-pointer ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
                   <input
                     ref={galleryInputRef}
                     type="file"
@@ -177,15 +171,10 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     id="gallery-input"
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <button
-                    type="button"
-                    onClick={handleGalleryClick}
-                    disabled={processing}
-                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
-                  </button>
-                </div>
+                  </div>
+                </label>
               </div>
               <p className="text-xs text-gray-500 mt-2" role="note">
                 사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
