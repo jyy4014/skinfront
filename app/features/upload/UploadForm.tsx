@@ -27,10 +27,25 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[UploadForm DEBUG] handleFileChange called', {
+      files: e.target.files,
+      fileCount: e.target.files?.length || 0,
+      target: e.target,
+    })
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      console.log('[UploadForm DEBUG] No file selected')
+      return
+    }
+
+    console.log('[UploadForm DEBUG] File selected', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    })
 
     if (!file.type.startsWith('image/')) {
+      console.log('[UploadForm DEBUG] File is not an image')
       return
     }
 
@@ -136,8 +151,19 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 <label 
                   className="flex-1 cursor-pointer"
                   onClick={(e) => {
+                    console.log('[UploadForm DEBUG] Camera label clicked', {
+                      hasRef: !!cameraInputRef.current,
+                      refValue: cameraInputRef.current,
+                      eventType: e.type,
+                      target: e.target,
+                    })
                     e.preventDefault()
-                    cameraInputRef.current?.click()
+                    if (cameraInputRef.current) {
+                      console.log('[UploadForm DEBUG] Calling cameraInputRef.current.click()')
+                      cameraInputRef.current.click()
+                    } else {
+                      console.error('[UploadForm DEBUG] cameraInputRef.current is null!')
+                    }
                   }}
                 >
                   <input
@@ -157,8 +183,19 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 <label 
                   className="flex-1 cursor-pointer"
                   onClick={(e) => {
+                    console.log('[UploadForm DEBUG] Gallery label clicked', {
+                      hasRef: !!galleryInputRef.current,
+                      refValue: galleryInputRef.current,
+                      eventType: e.type,
+                      target: e.target,
+                    })
                     e.preventDefault()
-                    galleryInputRef.current?.click()
+                    if (galleryInputRef.current) {
+                      console.log('[UploadForm DEBUG] Calling galleryInputRef.current.click()')
+                      galleryInputRef.current.click()
+                    } else {
+                      console.error('[UploadForm DEBUG] galleryInputRef.current is null!')
+                    }
                   }}
                 >
                   <input

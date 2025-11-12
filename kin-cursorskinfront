@@ -1,0 +1,15 @@
+* [33m2a3a5d0[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: require Supabase env vars during build (production-ready)
+* [33mc05019f[m fix: handle missing Supabase env vars during build
+* [33m8b9c83b[m fix: remove invalid secrets condition from GitHub Actions workflow
+* [33m3a797f2[m fix: GitHub Actions workflow - correct secrets condition syntax
+* [33m8438a8f[m fix: resolve build error - createEdgeFunctionClient export and SaveAnalysisResponse type
+* [33m3e3c1c0[m refactor: complete data fetching integration with TDD (priority 2-3)
+* [33m8f22e61[m refactor: 우선순위 1 리팩토링 완료 (TDD)
+* [33m0782f93[m feat: Improve symptom-based treatment recommendations and add trend scoring system
+* [33mb970076[m Fix: Remove invalid experimental config option
+* [33m619b692[m Fix: Vercel build error - Supabase env vars check and dynamic rendering
+* [33m6b4132a[m Update: Change API to Supabase Edge Functions
+* [33m4507c50[m Fix: 諛고룷瑜?蹂꾨룄 job?쇰줈 遺꾨━?섏뿬 Secrets ?놁쓣 ??嫄대꼫?곌린
+* [33m58e2d09[m Fix: 諛고룷 ?④퀎??continue-on-error 異붽?
+* [33m6976eb0[m Fix: 諛고룷 Secrets媛 ?놁쓣 ???뚰겕?뚮줈???ㅽ뙣 諛⑹?
+* [33m0d5102c[m Initial commit: Frontend - Next.js skin analysis app
