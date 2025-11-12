@@ -17,35 +17,21 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const { processImage, processing, error: processingError } = useImageResize({
     maxWidth: 1024,
     quality: 0.85,
-    checkQuality: false, // 품질 검사 비활성화 (너무 엄격함)
+    checkQuality: false,
   })
 
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [faceDetectionMessage, setFaceDetectionMessage] = useState<string | null>(null)
+  
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[UploadForm DEBUG] handleFileChange called', {
-      files: e.target.files,
-      fileCount: e.target.files?.length || 0,
-      target: e.target,
-    })
     const file = e.target.files?.[0]
-    if (!file) {
-      console.log('[UploadForm DEBUG] No file selected')
-      return
-    }
-
-    console.log('[UploadForm DEBUG] File selected', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    })
+    if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      console.log('[UploadForm DEBUG] File is not an image')
       return
     }
 
@@ -67,7 +53,7 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
             : '얼굴이 감지되지 않았습니다. 얼굴이 잘 보이는 사진을 다시 선택해주세요.'
         )
         onFaceDetectionResult?.(false)
-        return // 얼굴이 감지되지 않으면 업로드 차단
+        return
       }
 
       // 얼굴이 여러 개 감지된 경우
@@ -84,13 +70,21 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
       onFaceDetectionResult?.(true)
       onFileSelect(processedFile)
     } catch (error) {
-      // 에러는 processImage에서 처리됨
       console.error('Image processing error:', error)
       setFaceDetected(false)
       setFaceDetectionMessage('이미지 처리 중 오류가 발생했습니다.')
       onFaceDetectionResult?.(false)
     }
   }
+
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click()
+  }
+
+  const handleGalleryClick = () => {
+    galleryInputRef.current?.click()
+  }
+
   return (
     <Card className="p-6">
       {processingError && (
@@ -148,24 +142,8 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                <label 
-                  className="flex-1 cursor-pointer"
-                  onClick={(e) => {
-                    console.log('[UploadForm DEBUG] Camera label clicked', {
-                      hasRef: !!cameraInputRef.current,
-                      refValue: cameraInputRef.current,
-                      eventType: e.type,
-                      target: e.target,
-                    })
-                    e.preventDefault()
-                    if (cameraInputRef.current) {
-                      console.log('[UploadForm DEBUG] Calling cameraInputRef.current.click()')
-                      cameraInputRef.current.click()
-                    } else {
-                      console.error('[UploadForm DEBUG] cameraInputRef.current is null!')
-                    }
-                  }}
-                >
+                {/* 카메라 버튼 */}
+                <div className="flex-1">
                   <input
                     ref={cameraInputRef}
                     type="file"
@@ -174,30 +152,21 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={processing}
+                    id="camera-input"
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={handleCameraClick}
+                    disabled={processing}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
-                  </div>
-                </label>
-                <label 
-                  className="flex-1 cursor-pointer"
-                  onClick={(e) => {
-                    console.log('[UploadForm DEBUG] Gallery label clicked', {
-                      hasRef: !!galleryInputRef.current,
-                      refValue: galleryInputRef.current,
-                      eventType: e.type,
-                      target: e.target,
-                    })
-                    e.preventDefault()
-                    if (galleryInputRef.current) {
-                      console.log('[UploadForm DEBUG] Calling galleryInputRef.current.click()')
-                      galleryInputRef.current.click()
-                    } else {
-                      console.error('[UploadForm DEBUG] galleryInputRef.current is null!')
-                    }
-                  }}
-                >
+                  </button>
+                </div>
+                
+                {/* 갤러리 버튼 */}
+                <div className="flex-1">
                   <input
                     ref={galleryInputRef}
                     type="file"
@@ -205,12 +174,18 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={processing}
+                    id="gallery-input"
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={handleGalleryClick}
+                    disabled={processing}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
-                  </div>
-                </label>
+                  </button>
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-2" role="note">
                 사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
@@ -272,4 +247,3 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
     </Card>
   )
 }
-

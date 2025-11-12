@@ -59,17 +59,17 @@ describe('UploadForm', () => {
     )
 
     const galleryInput = screen.getByLabelText('갤러리에서 사진 선택')
-    const galleryLabel = galleryInput.closest('label')
+    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
     
     expect(galleryInput).toBeInTheDocument()
-    expect(galleryLabel).toBeInTheDocument()
+    expect(galleryButton).toBeInTheDocument()
 
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(galleryInput, 'click')
 
-    // Click on label
-    if (galleryLabel) {
-      fireEvent.click(galleryLabel)
+    // Click on button
+    if (galleryButton) {
+      fireEvent.click(galleryButton)
     }
 
     // Verify input.click() was called
@@ -86,17 +86,17 @@ describe('UploadForm', () => {
     )
 
     const cameraInput = screen.getByLabelText('카메라로 사진 촬영')
-    const cameraLabel = cameraInput.closest('label')
+    const cameraButton = screen.getByText('📸 촬영하기').closest('button')
     
     expect(cameraInput).toBeInTheDocument()
-    expect(cameraLabel).toBeInTheDocument()
+    expect(cameraButton).toBeInTheDocument()
 
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(cameraInput, 'click')
 
-    // Click on label
-    if (cameraLabel) {
-      fireEvent.click(cameraLabel)
+    // Click on button
+    if (cameraButton) {
+      fireEvent.click(cameraButton)
     }
 
     // Verify input.click() was called
@@ -104,7 +104,7 @@ describe('UploadForm', () => {
     clickSpy.mockRestore()
   })
 
-  it('label의 onClick 핸들러가 input.click()을 호출해야 함', () => {
+  it('버튼의 onClick 핸들러가 input.click()을 호출해야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -113,18 +113,18 @@ describe('UploadForm', () => {
     )
 
     const galleryInput = screen.getByLabelText('갤러리에서 사진 선택') as HTMLInputElement
-    const galleryLabel = galleryInput.closest('label')
+    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
     
-    expect(galleryLabel).toBeInTheDocument()
+    expect(galleryButton).toBeInTheDocument()
     
     // Mock input.click() to verify it's called
     const clickSpy = jest.spyOn(galleryInput, 'click').mockImplementation(() => {
       console.log('[TEST DEBUG] input.click() called')
     })
 
-    // Simulate click event on label
-    if (galleryLabel) {
-      fireEvent.click(galleryLabel)
+    // Simulate click event on button
+    if (galleryButton) {
+      fireEvent.click(galleryButton)
 
       // Verify input.click() was called
       expect(clickSpy).toHaveBeenCalled()
@@ -189,7 +189,7 @@ describe('UploadForm', () => {
     expect(cameraInput.type).toBe('file')
   })
 
-  it('div에 pointer-events-none이 적용되어야 함', () => {
+  it('버튼이 올바르게 렌더링되어야 함', () => {
     render(
       <UploadForm
         onFileSelect={mockOnFileSelect}
@@ -197,12 +197,13 @@ describe('UploadForm', () => {
       />
     )
 
-    const galleryInput = screen.getByLabelText('갤러리에서 사진 선택')
-    const galleryLabel = galleryInput.closest('label')
-    const buttonDiv = galleryLabel?.querySelector('div')
+    const galleryButton = screen.getByText('🖼️ 갤러리').closest('button')
+    const cameraButton = screen.getByText('📸 촬영하기').closest('button')
 
-    expect(buttonDiv).toBeInTheDocument()
-    expect(buttonDiv).toHaveClass('pointer-events-none')
+    expect(galleryButton).toBeInTheDocument()
+    expect(cameraButton).toBeInTheDocument()
+    expect(galleryButton).toHaveAttribute('type', 'button')
+    expect(cameraButton).toHaveAttribute('type', 'button')
   })
 })
 
