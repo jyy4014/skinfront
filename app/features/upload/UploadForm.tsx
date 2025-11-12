@@ -141,7 +141,7 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
                   </div>
                 </label>
@@ -154,7 +154,7 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                     disabled={processing}
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
+                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors pointer-events-none">
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
                   </div>
                 </label>
