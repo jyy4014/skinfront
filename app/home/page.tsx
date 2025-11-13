@@ -6,6 +6,7 @@ import RecommendedTreatments from '@/app/components/home/RecommendedTreatments'
 import BottomNav from '@/app/components/common/BottomNav'
 import { useAnalysisHistory } from '@/app/lib/data'
 import { useAuth } from '@/app/lib/auth'
+import { LoadingSpinner } from '@/app/lib/ui'
 
 export default function HomePage() {
   // 사용자 정보 조회 (통합 인증 모듈 사용)
@@ -20,7 +21,7 @@ export default function HomePage() {
   if (!user || authLoading || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">로딩 중...</div>
+        <LoadingSpinner fullScreen message="로딩 중..." />
       </div>
     )
   }

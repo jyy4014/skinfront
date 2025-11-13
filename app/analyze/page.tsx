@@ -6,6 +6,7 @@ import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
 import Header from '@/app/components/common/Header'
 import AnalysisLoading from '@/app/components/analysis/ProgressLoader'
+import { ErrorMessage } from '@/app/lib/ui'
 import UploadForm from '@/app/features/upload/UploadForm'
 import ResultView from '@/app/features/analysis/ResultView'
 import Button from '@/app/components/ui/Button'
@@ -81,8 +82,8 @@ export default function AnalyzePage() {
         ) : !analysisResult ? (
           <div>
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-                {error instanceof Error ? error.message : String(error)}
+              <div className="mb-6">
+                <ErrorMessage error={error} dismissible />
               </div>
             )}
 

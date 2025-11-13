@@ -7,6 +7,7 @@ import { useUserProfile, useAnalysisHistory } from '@/app/lib/data'
 import { ArrowLeft, User, Calendar, Mail, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
+import { LoadingSpinner, EmptyState } from '@/app/lib/ui'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -37,7 +38,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">로딩 중...</div>
+        <LoadingSpinner fullScreen message="로딩 중..." />
       </div>
     )
   }
@@ -112,15 +113,19 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-gray-900">분석 기록</h2>
             {!analyses || analyses.length === 0 ? (
-              <div className="bg-gray-50 rounded-xl p-8 text-center">
-                <p className="text-gray-600 mb-4">아직 분석 기록이 없습니다.</p>
-                <Link
-                  href="/analyze"
-                  className="inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-                >
-                  첫 분석 시작하기
-                </Link>
-              </div>
+              <EmptyState
+                icon="history"
+                message="아직 분석 기록이 없습니다."
+                description="첫 분석을 시작해보세요."
+                action={
+                  <Link
+                    href="/analyze"
+                    className="inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                  >
+                    첫 분석 시작하기
+                  </Link>
+                }
+              />
             ) : (
               <div className="space-y-4">
                 {analyses?.map((analysis: any) => (

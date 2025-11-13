@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Camera, Upload, AlertCircle } from 'lucide-react'
+import { Camera, Upload } from 'lucide-react'
+import { ErrorMessage, LoadingSpinner } from '@/app/lib/ui'
 import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
 import { useImageProcessor } from '@/app/lib/image'
@@ -80,36 +81,36 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   return (
     <Card className="p-6">
       {processingError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-          {processingError}
+        <div className="mb-4">
+          <ErrorMessage error={processingError} size="sm" />
         </div>
       )}
       {faceDetectionError && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">얼굴 감지 오류</p>
-            <p className="text-xs mt-1">{faceDetectionError}</p>
-          </div>
+        <div className="mb-4">
+          <ErrorMessage error={faceDetectionError} size="sm" />
         </div>
       )}
       {faceDetectionMessage && faceDetected === false && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">얼굴이 감지되지 않았습니다</p>
-            <p className="text-xs mt-1">{faceDetectionMessage}</p>
-            <ul className="text-xs mt-2 list-disc list-inside space-y-1 text-red-600">
-              <li>밝은 조명에서 정면으로 촬영해주세요</li>
-              <li>얼굴이 화면 중앙에 위치하도록 해주세요</li>
-              <li>화장을 지우고 깨끗한 얼굴 상태로 촬영해주세요</li>
-            </ul>
-          </div>
+        <div className="mb-4">
+          <ErrorMessage
+            error={faceDetectionMessage}
+            size="sm"
+            autoStyle={false}
+            className="bg-red-50 border-red-200 text-red-800"
+          />
+          <ul className="mt-2 text-xs list-disc list-inside space-y-1 text-red-600 ml-4">
+            <li>밝은 조명에서 정면으로 촬영해주세요</li>
+            <li>얼굴이 화면 중앙에 위치하도록 해주세요</li>
+            <li>화장을 지우고 깨끗한 얼굴 상태로 촬영해주세요</li>
+          </ul>
         </div>
       )}
       {(processing || detectingFace) && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-          {detectingFace ? '얼굴을 확인하는 중...' : '이미지를 처리하는 중...'}
+        <div className="mb-4">
+          <LoadingSpinner
+            size="sm"
+            message={detectingFace ? '얼굴을 확인하는 중...' : '이미지를 처리하는 중...'}
+          />
         </div>
       )}
       {!preview ? (

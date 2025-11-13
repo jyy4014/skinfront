@@ -6,6 +6,7 @@ import { useAuth } from '@/app/lib/auth'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
+import { LoadingSpinner, EmptyState, ErrorMessage } from '@/app/lib/ui'
 
 export default function AnalysisDetailPage() {
   const params = useParams()
@@ -23,23 +24,45 @@ export default function AnalysisDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">로딩 중...</div>
+        <LoadingSpinner fullScreen message="로딩 중..." />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <ErrorMessage error={error} dismissible />
+          <div className="mt-4 text-center">
+            <Link
+              href="/home"
+              className="text-pink-600 hover:text-pink-700 font-semibold"
+            >
+              홈으로 돌아가기
+            </Link>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!analysis) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">분석 결과를 찾을 수 없습니다.</p>
-          <Link
-            href="/home"
-            className="text-pink-600 hover:text-pink-700 font-semibold"
-          >
-            홈으로 돌아가기
-          </Link>
-        </div>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <EmptyState
+          icon="file"
+          message="분석 결과를 찾을 수 없습니다."
+          description="요청하신 분석 결과가 존재하지 않거나 삭제되었습니다."
+          action={
+            <Link
+              href="/home"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+            >
+              홈으로 돌아가기
+            </Link>
+          }
+        />
       </div>
     )
   }
