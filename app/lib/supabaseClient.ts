@@ -1,17 +1,14 @@
+'use client'
+
 import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseUrl, getSupabaseAnonKey } from './config'
 
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
-  // 환경 변수는 빌드 시와 런타임 모두 필수
-  // 상용 환경에서는 반드시 설정되어야 함
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.'
-    )
-  }
-
+  // Supabase SSR은 기본적으로 쿠키를 사용하여 세션을 유지합니다
+  // 자동 로그인은 Supabase가 기본적으로 지원합니다
   return createBrowserClient(supabaseUrl, supabaseAnonKey)
 }
 

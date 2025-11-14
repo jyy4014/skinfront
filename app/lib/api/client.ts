@@ -107,15 +107,13 @@ export interface EdgeFunctionOptions {
   headers?: Record<string, string>
 }
 
+import { getSupabaseUrl } from '../config'
+
 export async function callEdgeFunction<T>(
   functionName: string,
   options: EdgeFunctionOptions = {}
 ): Promise<T> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set')
-  }
-
+  const supabaseUrl = getSupabaseUrl()
   const url = `${supabaseUrl}/functions/v1/${functionName}`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

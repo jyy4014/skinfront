@@ -48,7 +48,23 @@ export function useAuth(): UseAuthReturn {
   }
 
   useEffect(() => {
-    fetchUser()
+    // 자동 로그인: 저장된 세션 복원
+    const restoreSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          setUser(session.user)
+          setLoading(false)
+        } else {
+          fetchUser()
+        }
+      } catch (err) {
+        console.error('Restore session error:', err)
+        fetchUser()
+      }
+    }
+
+    restoreSession()
 
     // 인증 상태 변경 감지
     const {

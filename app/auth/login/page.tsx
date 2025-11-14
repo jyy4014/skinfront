@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabaseClient'
 import { Mail, Lock, KeyRound } from 'lucide-react'
+import LoginForm from './components/LoginForm'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -26,10 +27,11 @@ export default function LoginPage() {
     setMessage(null)
 
     try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${origin}/auth/callback`,
         },
       })
 
@@ -95,11 +97,12 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${origin}/auth/callback`,
           },
         })
         
@@ -159,10 +162,11 @@ export default function LoginPage() {
     setError(null)
 
     try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${origin}/auth/callback`,
         },
       })
       if (error) throw error
@@ -309,49 +313,55 @@ export default function LoginPage() {
             )
           ) : (
             /* 비밀번호 방식 */
-            <form onSubmit={handleEmailAuth} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  이메일
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    placeholder="your@email.com"
-                  />
-                </div>
-              </div>
+            <>
+              {isSignUp ? (
+                <form onSubmit={handleEmailAuth} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      이메일
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        placeholder="your@email.com"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  비밀번호
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      비밀번호
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50"
-              >
-                {loading ? '처리 중...' : isSignUp ? '회원가입' : '로그인'}
-              </button>
-            </form>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {loading ? '처리 중...' : '회원가입'}
+                  </button>
+                </form>
+              ) : (
+                <LoginForm />
+              )}
+            </>
           )}
 
           <div className="my-6 flex items-center">
@@ -388,14 +398,32 @@ export default function LoginPage() {
 
           {authMode === 'password' && (
             <div className="mt-6 text-center">
-              <button
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-gray-600 hover:text-pink-500"
-              >
-                {isSignUp
-                  ? '이미 계정이 있으신가요? 로그인'
-                  : '계정이 없으신가요? 회원가입'}
-              </button>
+              {isSignUp ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    회원가입 시 생년월일, 핸드폰번호, 국적, 별명이 필요합니다.
+                  </p>
+                  <button
+                    onClick={() => router.push('/auth/signup')}
+                    className="text-sm text-pink-600 hover:text-pink-700 font-medium"
+                  >
+                    전체 회원가입 폼으로 이동 →
+                  </button>
+                  <button
+                    onClick={() => setIsSignUp(false)}
+                    className="block text-sm text-gray-600 hover:text-pink-500 mt-2"
+                  >
+                    이미 계정이 있으신가요? 로그인
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => router.push('/auth/signup')}
+                  className="text-sm text-gray-600 hover:text-pink-500"
+                >
+                  계정이 없으신가요? 회원가입
+                </button>
+              )}
             </div>
           )}
         </div>

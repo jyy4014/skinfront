@@ -1,5 +1,7 @@
+'use client'
+
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { FaceDetection, Results } from '@mediapipe/face_detection'
+import * as faceapi from 'face-api.js'
 import { useFaceAngleDetection, isFaceAngleValid } from './useFaceAngleDetection'
 import type { FaceCaptureAngle } from '../types'
 
@@ -56,7 +58,6 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
 
   const { detectFaceAngle } = useFaceAngleDetection()
   const currentFaceAngleRef = useRef<{ yaw: number; pitch: number; roll: number } | null>(null)
-  const lastDetectionResultsRef = useRef<Results | null>(null)
   const angleDetectionPendingRef = useRef(false) // 각도 감지 중복 호출 방지
   const frameSkipCountRef = useRef(0) // 프레임 스킵 카운터 (성능 최적화)
   const lastAngleRef = useRef<{ yaw: number; pitch: number; roll: number } | null>(null) // 이전 각도 캐싱
@@ -68,7 +69,7 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const detectorRef = useRef<FaceDetection | null>(null)
+  const detectorInitializedRef = useRef(false)
   const animationFrameRef = useRef<number | null>(null)
   const stableFrameCountRef = useRef(0)
 
@@ -81,29 +82,32 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
   const [angleValid, setAngleValid] = useState(false)
   const angleValidRef = useRef(false) // ref로도 관리하여 dependency 문제 해결
 
-  // MediaPipe Face Detection 초기화
+  // face-api.js 모델 초기화
   const initializeDetector = useCallback(async () => {
-    if (detectorRef.current) return
+    if (detectorInitializedRef.current) return
+
+    // 클라이언트 사이드에서만 실행
+    if (typeof window === 'undefined') {
+      throw new Error('Face detection is only available on the client side')
+    }
 
     try {
-      const { FaceDetection } = await import('@mediapipe/face_detection')
+      // face-api.js 모델 로드 (CDN 또는 로컬 경로)
+      // TinyFaceDetector는 경량 모델로 실시간 감지에 적합
+      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
       
-      detectorRef.current = new FaceDetection({
-        locateFile: (file: string) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
-        },
-      })
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        // 얼굴 랜드마크는 useFaceAngleDetection에서 사용하므로 여기서는 로드하지 않음
+      ])
 
-      detectorRef.current.setOptions({
-        model: 'short',
-        minDetectionConfidence: minConfidence,
-      })
-
-      await detectorRef.current.initialize()
+      detectorInitializedRef.current = true
     } catch (err) {
-      throw new Error(`얼굴 감지 초기화 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류'
+      console.error('face-api.js initialization error:', err)
+      throw new Error(`얼굴 감지 초기화 실패: ${errorMessage}`)
     }
-  }, [minConfidence])
+  }, [])
 
   // 얼굴 위치가 적절한지 확인
   const isFacePositionValid = useCallback((position: FacePosition, videoWidth: number, videoHeight: number): boolean => {
@@ -177,7 +181,7 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
 
   // 비디오 프레임 처리 및 얼굴 감지
   const processFrame = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !detectorRef.current || !isStreaming) {
+    if (!videoRef.current || !canvasRef.current || !detectorInitializedRef.current || !isStreaming) {
       return
     }
 
@@ -200,22 +204,28 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
     setIsDetecting(true)
 
     try {
-      // 얼굴 감지 실행
-      await new Promise<void>((resolve) => {
-        detectorRef.current!.onResults((results: Results) => {
-          const detections = results.detections || []
-          
-          if (detections.length === 1) {
-            const detection = detections[0]
-            const bbox = detection.boundingBox
-            
-            const position: FacePosition = {
-              x: bbox.xCenter * canvas.width - (bbox.width * canvas.width) / 2,
-              y: bbox.yCenter * canvas.height - (bbox.height * canvas.height) / 2,
-              width: bbox.width * canvas.width,
-              height: bbox.height * canvas.height,
-              confidence: (detection as any).score || 0.8, // MediaPipe Detection 타입에 score가 없을 수 있음
-            }
+      // face-api.js 얼굴 감지 실행
+      if (!detectorInitializedRef.current) {
+        await initializeDetector()
+      }
+
+      const detection = await faceapi
+        .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ 
+          inputSize: 320, // 작은 값일수록 빠르지만 정확도 감소
+          scoreThreshold: minConfidence 
+        }))
+      
+      if (detection) {
+        const box = detection.box
+        
+        // face-api.js 형식: { x, y, width, height }
+        const position: FacePosition = {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+          confidence: detection.score,
+        }
 
             setFacePosition(position)
             setFaceDetected(true)
@@ -382,25 +392,20 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
               movementHistoryRef.current = []
               lastPositionRef.current = null
             }
-          } else {
-            setFaceDetected(false)
-            setFacePosition(null)
-            setCurrentAngle(null)
-            setAngleValid(false)
-            angleValidRef.current = false
-            stableFrameCountRef.current = 0
-            frameSkipCountRef.current = 0
-            angleDetectionPendingRef.current = false
-            movementHistoryRef.current = []
-            lastAngleRef.current = null
-            lastPositionRef.current = null
-          }
-
-          resolve()
-        })
-
-        detectorRef.current!.send({ image: canvas })
-      })
+      } else {
+        // 얼굴이 감지되지 않음
+        setFaceDetected(false)
+        setFacePosition(null)
+        setCurrentAngle(null)
+        setAngleValid(false)
+        angleValidRef.current = false
+        stableFrameCountRef.current = 0
+        frameSkipCountRef.current = 0
+        angleDetectionPendingRef.current = false
+        movementHistoryRef.current = []
+        lastAngleRef.current = null
+        lastPositionRef.current = null
+      }
     } catch (err) {
       console.error('Face detection error:', err)
     } finally {
@@ -437,9 +442,27 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
         processFrame()
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '카메라 접근 실패'
+      let errorMessage = '카메라 접근 실패'
+      
+      if (err instanceof Error) {
+        // 구체적인 에러 메시지 제공
+        if (err.name === 'NotAllowedError' || err.message.includes('permission')) {
+          errorMessage = '카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.'
+        } else if (err.name === 'NotFoundError' || err.message.includes('device not found')) {
+          errorMessage = '카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.'
+        } else if (err.name === 'NotReadableError' || err.message.includes('could not start')) {
+          errorMessage = '카메라를 사용할 수 없습니다. 다른 애플리케이션에서 카메라를 사용 중일 수 있습니다.'
+        } else if (err.message.includes('얼굴 감지 초기화')) {
+          errorMessage = '얼굴 감지 모델을 로드하는데 실패했습니다. 인터넷 연결을 확인해주세요.'
+        } else {
+          errorMessage = err.message || '카메라 접근 실패'
+        }
+      }
+      
+      console.error('Camera start error:', err)
       setError(errorMessage)
-      throw new Error(errorMessage)
+      setIsStreaming(false)
+      // 에러를 throw하지 않고 상태로만 관리 (컴포넌트 크래시 방지)
     }
   }, [initializeDetector, processFrame])
 
@@ -469,10 +492,8 @@ export function useCameraCapture(options: UseCameraCaptureOptions): UseCameraCap
   useEffect(() => {
     return () => {
       stopCamera()
-      if (detectorRef.current) {
-        detectorRef.current.close()
-        detectorRef.current = null
-      }
+      // face-api.js는 별도의 dispose가 필요 없음
+      detectorInitializedRef.current = false
     }
   }, [stopCamera])
 

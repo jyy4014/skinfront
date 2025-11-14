@@ -2,6 +2,8 @@
  * 이미지 처리 핵심 로직
  */
 
+import { IMAGE_CONFIG, IMAGE_QUALITY_VALIDATION } from '../config'
+
 export interface ProcessImageOptions {
   maxWidth?: number
   quality?: number
@@ -18,8 +20,8 @@ export interface ProcessImageResult {
  */
 export async function resizeImage(
   file: File,
-  maxWidth: number = 1024,
-  quality: number = 0.85
+  maxWidth: number = IMAGE_CONFIG.MAX_WIDTH,
+  quality: number = IMAGE_CONFIG.QUALITY
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -168,7 +170,11 @@ export async function processImage(
   file: File,
   options: ProcessImageOptions = {}
 ): Promise<ProcessImageResult> {
-  const { maxWidth = 1024, quality = 0.85, checkQuality = false } = options
+  const {
+    maxWidth = IMAGE_CONFIG.MAX_WIDTH,
+    quality = IMAGE_CONFIG.QUALITY,
+    checkQuality = false,
+  } = options
 
   // 이미지 리사이즈 및 WebP 변환
   const resizedBlob = await resizeImage(file, maxWidth, quality)
@@ -182,8 +188,8 @@ export async function processImage(
   if (checkQuality) {
     qualityScore = await checkImageQuality(processedFile)
     // sharpnessScore는 높을수록 선명 (0-1 범위)
-    // 0.1 미만이면 너무 흐린 이미지로 간주
-    if (qualityScore < 0.1) {
+    // 최소 품질 점수 미만이면 너무 흐린 이미지로 간주
+    if (qualityScore < IMAGE_QUALITY_VALIDATION.MIN_QUALITY_SCORE) {
       throw new Error('이미지가 너무 흐릿합니다. 더 선명한 사진을 사용해주세요.')
     }
   }

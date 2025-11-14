@@ -3,6 +3,8 @@
  */
 export interface AnalysisResult {
   id: string
+  image_urls: string[] // 3개 이미지 URL 배열 (정면, 좌측, 우측)
+  image_angles: FaceCaptureAngle[] // 각 이미지의 각도 정보
   analysis: {
     skin_condition_scores: Record<string, number>
     masks?: Array<{

@@ -2,26 +2,19 @@
  * 이미지 파일 검증
  */
 
+import { FILE_VALIDATION } from '../config'
+
 export interface ValidationResult {
   valid: boolean
   error?: string
 }
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]
 
 /**
  * 이미지 파일 유효성 검사
  */
 export function validateImageFile(
   file: File,
-  maxSize: number = MAX_FILE_SIZE
+  maxSize: number = FILE_VALIDATION.MAX_SIZE
 ): ValidationResult {
   // 파일 타입 검사
   if (!file.type.startsWith('image/')) {
@@ -32,7 +25,9 @@ export function validateImageFile(
   }
 
   // MIME 타입 검사
-  if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+  const fileType = file.type.toLowerCase()
+  const allowedTypes = FILE_VALIDATION.ALLOWED_IMAGE_TYPES as readonly string[]
+  if (!allowedTypes.includes(fileType)) {
     return {
       valid: false,
       error: '지원하지 않는 이미지 형식입니다. (JPEG, PNG, WebP, GIF만 지원)',

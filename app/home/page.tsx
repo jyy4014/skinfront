@@ -4,13 +4,17 @@ import { Camera, History } from 'lucide-react'
 import Link from 'next/link'
 import RecommendedTreatments from '@/app/components/home/RecommendedTreatments'
 import BottomNav from '@/app/components/common/BottomNav'
-import { useAnalysisHistory } from '@/app/lib/data'
+import { PermissionChecker } from '@/app/components/common/PermissionChecker'
+import { useAnalysisHistory, useUserProfile } from '@/app/lib/data'
 import { useAuth } from '@/app/lib/auth'
 import { LoadingSpinner } from '@/app/lib/ui'
 
 export default function HomePage() {
   // 사용자 정보 조회 (통합 인증 모듈 사용)
   const { user, loading: authLoading } = useAuth()
+  
+  // 사용자 프로필 조회 (별명 포함)
+  const { data: userProfile, isLoading: profileLoading } = useUserProfile()
 
   // 최근 분석 결과 조회
   const { data: analyses, isLoading } = useAnalysisHistory({
@@ -18,7 +22,15 @@ export default function HomePage() {
   })
   const recentAnalysis = analyses && analyses.length > 0 ? analyses[0] : null
 
-  if (!user || authLoading || isLoading) {
+  // 별명 우선, 없으면 이름 사용
+  const displayName = 
+    userProfile?.profile?.nickname || 
+    userProfile?.profile?.name || 
+    userProfile?.user_metadata?.nickname || 
+    userProfile?.user_metadata?.name || 
+    null
+
+  if (!user || authLoading || profileLoading || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingSpinner fullScreen message="로딩 중..." />
@@ -28,10 +40,15 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 pb-20">
+      {/* 권한 확인 컴포넌트 - 앱 시작 시 카메라 권한 확인 */}
+      <PermissionChecker />
+      
       {/* Header - 모바일 앱 스타일 */}
       <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40 safe-area-top border-b border-gray-100">
         <div className="max-w-md mx-auto px-4 py-3">
-          <h1 className="text-xl font-bold text-gray-900">피부 분석</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            {displayName ? `안녕하세요, ${displayName}님! 👋` : '피부 분석'}
+          </h1>
         </div>
       </header>
 

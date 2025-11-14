@@ -4,9 +4,11 @@ import { useState, useRef } from 'react'
 import { Camera, Image as ImageIcon } from 'lucide-react'
 import Card from '@/app/components/ui/Card'
 import { MultiAngleCameraCapture } from './MultiAngleCameraCapture'
+import { CameraPermissionModal } from '@/app/components/common/CameraPermissionModal'
+import { useCameraPermissionContext } from '@/app/providers/CameraPermissionProvider'
 
 interface ImageUploadSectionProps {
-  onFileSelect: (file: File) => void
+  onFileSelect: (files: File[]) => void // 3개 이미지 배열
   processing?: boolean
 }
 
@@ -18,6 +20,15 @@ export function ImageUploadSection({ onFileSelect, processing = false }: ImageUp
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const [showCamera, setShowCamera] = useState(false)
+  const [showPermissionModal, setShowPermissionModal] = useState(false)
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false)
+
+  const {
+    permissionStatus,
+    hasCamera,
+    isChecking,
+    requestPermission,
+  } = useCameraPermissionContext()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -27,7 +38,8 @@ export function ImageUploadSection({ onFileSelect, processing = false }: ImageUp
       return
     }
 
-    onFileSelect(file)
+    // 단일 파일도 배열로 전달 (하위 호환성)
+    onFileSelect([file])
 
     // input 초기화 (같은 파일 다시 선택 가능하도록)
     if (cameraInputRef.current) cameraInputRef.current.value = ''
@@ -35,14 +47,41 @@ export function ImageUploadSection({ onFileSelect, processing = false }: ImageUp
   }
 
   const handleCameraClick = () => {
-    setShowCamera(true)
+    // 카메라가 없으면 아무것도 하지 않음
+    if (!hasCamera) {
+      return
+    }
+
+    // 권한이 있으면 바로 카메라 모달 표시
+    if (permissionStatus === 'granted') {
+      setShowCamera(true)
+    } else {
+      // 권한이 없으면 권한 요청 모달 표시
+      setShowPermissionModal(true)
+    }
   }
+
+  const handleRequestPermission = async () => {
+    setIsRequestingPermission(true)
+    const granted = await requestPermission()
+    setIsRequestingPermission(false)
+    
+    if (granted) {
+      // 권한이 허용되었으면 권한 모달 닫고 카메라 모달 표시
+      setShowPermissionModal(false)
+      setShowCamera(true)
+    }
+    // 권한이 거부되면 모달은 그대로 유지 (사용자가 다시 시도할 수 있도록)
+  }
+
+  // 카메라 사용 가능 여부
+  const canUseCamera = hasCamera && permissionStatus === 'granted'
 
   const handleMultiAngleComplete = (images: File[]) => {
     setShowCamera(false)
-    // 첫 번째 이미지(정면)를 메인으로 사용
+    // 3개 이미지 모두 전달
     if (images.length > 0) {
-      onFileSelect(images[0])
+      onFileSelect(images) // 전체 배열 전달
     }
   }
 
@@ -77,18 +116,29 @@ export function ImageUploadSection({ onFileSelect, processing = false }: ImageUp
             </div>
             
             <div className="flex gap-3 w-full">
-              {/* 카메라 버튼 - 자동 얼굴 감지 촬영 */}
-              <button
-                type="button"
-                onClick={handleCameraClick}
-                disabled={processing}
-                className="flex-1 px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="text-sm font-medium text-gray-700 flex items-center justify-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  촬영하기
-                </span>
-              </button>
+              {/* 카메라 버튼 - 항상 표시 (권한 상태와 관계없이) */}
+              {hasCamera && !isChecking && (
+                <button
+                  type="button"
+                  onClick={handleCameraClick}
+                  disabled={processing}
+                  className="flex-1 px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="text-sm font-medium text-gray-700 flex items-center justify-center gap-2">
+                    <Camera className="w-4 h-4" />
+                    촬영하기
+                  </span>
+                </button>
+              )}
+
+              {/* 카메라 없음 안내 */}
+              {!hasCamera && !isChecking && (
+                <div className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-center">
+                  <span className="text-sm font-medium text-gray-600">
+                    카메라 없음
+                  </span>
+                </div>
+              )}
               
               {/* 기존 파일 선택 (fallback) */}
               <label className="hidden">
@@ -131,8 +181,16 @@ export function ImageUploadSection({ onFileSelect, processing = false }: ImageUp
         </div>
       </div>
 
-      {/* 다각도 카메라 캡처 모달 */}
-      {showCamera && (
+      {/* 카메라 권한 요청 모달 */}
+      <CameraPermissionModal
+        isOpen={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onRequestPermission={handleRequestPermission}
+        isRequesting={isRequestingPermission}
+      />
+
+      {/* 다각도 카메라 캡처 모달 - 권한이 있고 카메라가 있을 때만 표시 */}
+      {showCamera && canUseCamera && (
         <MultiAngleCameraCapture
           onComplete={handleMultiAngleComplete}
           onClose={handleCameraClose}

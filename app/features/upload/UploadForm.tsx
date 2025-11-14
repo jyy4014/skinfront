@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Camera, Upload } from 'lucide-react'
 import { ErrorMessage, LoadingSpinner } from '@/app/lib/ui'
-import Button from '@/app/components/ui/Button'
 import Card from '@/app/components/ui/Card'
 import { useImageProcessor } from '@/app/lib/image'
 import { useFaceDetection } from '@/app/hooks/useFaceDetection'
@@ -25,6 +24,9 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
   const { detectFace, detecting: detectingFace, error: faceDetectionError } = useFaceDetection()
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [faceDetectionMessage, setFaceDetectionMessage] = useState<string | null>(null)
+  
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -76,7 +78,6 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
       onFaceDetectionResult?.(false)
     }
   }
-
 
   return (
     <Card className="p-6">
@@ -135,33 +136,61 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
                 </p>
               </div>
               <div className="flex gap-3 w-full">
-                <label className="flex-1 cursor-pointer">
+                {/* 카메라 버튼 */}
+                <div className="flex-1">
                   <input
+                    ref={cameraInputRef}
+                    id="camera-input"
                     type="file"
                     accept="image/*"
                     capture="environment"
                     onChange={handleFileChange}
-                    className="hidden"
+                    className="sr-only"
                     disabled={processing}
                     aria-label="카메라로 사진 촬영"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!processing && cameraInputRef.current) {
+                        cameraInputRef.current.click()
+                      }
+                    }}
+                    disabled={processing}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus:border-pink-500 focus:ring-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="카메라로 사진 촬영"
+                  >
                     <span className="text-sm font-medium text-gray-700">📸 촬영하기</span>
-                  </div>
-                </label>
-                <label className="flex-1 cursor-pointer">
+                  </button>
+                </div>
+                
+                {/* 갤러리 버튼 */}
+                <div className="flex-1">
                   <input
+                    ref={galleryInputRef}
+                    id="gallery-input"
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="hidden"
+                    className="sr-only"
                     disabled={processing}
                     aria-label="갤러리에서 사진 선택"
                   />
-                  <div className="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!processing && galleryInputRef.current) {
+                        // 사용자 상호작용 컨텍스트에서 직접 호출
+                        galleryInputRef.current.click()
+                      }
+                    }}
+                    disabled={processing}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-center hover:border-pink-500 transition-colors focus:border-pink-500 focus:ring-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="갤러리에서 사진 선택"
+                  >
                     <span className="text-sm font-medium text-gray-700">🖼️ 갤러리</span>
-                  </div>
-                </label>
+                  </button>
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-2" role="note">
                 사용자의 이미지와 분석 데이터는 익명화되어 저장되며, AI 모델 학습용으로 재사용되지 않습니다.
@@ -202,22 +231,27 @@ export default function UploadForm({ onFileSelect, preview, onFaceDetectionResul
             </div>
           )}
           
-          <div className="flex gap-4">
-            <label className="flex-1 cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="sr-only"
-                disabled={processing}
-                aria-label="다른 사진 선택"
-              />
-              <div className="border-2 border-gray-300 rounded-lg p-4 text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
-                <Upload className="w-5 h-5 mx-auto mb-2 text-gray-600" aria-hidden="true" />
-                <span className="text-sm text-gray-700">다른 사진 선택</span>
-              </div>
-            </label>
-          </div>
+          <label 
+            htmlFor="replace-input"
+            className="block cursor-pointer"
+            tabIndex={0}
+            role="button"
+            aria-label="다른 사진 선택"
+          >
+            <input
+              id="replace-input"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="sr-only"
+              disabled={processing}
+              aria-label="다른 사진 선택"
+            />
+            <div className="border-2 border-gray-300 rounded-lg p-4 text-center hover:border-pink-500 transition-colors focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-500">
+              <Upload className="w-5 h-5 mx-auto mb-2 text-gray-600" aria-hidden="true" />
+              <span className="text-sm text-gray-700">다른 사진 선택</span>
+            </div>
+          </label>
         </div>
       )}
     </Card>

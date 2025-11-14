@@ -2,8 +2,8 @@
  * TDD: UploadForm 컴포넌트 테스트
  * 
  * 테스트 시나리오:
- * 1. 갤러리 버튼 클릭 시 파일 input이 클릭되어야 함
- * 2. 카메라 버튼 클릭 시 파일 input이 클릭되어야 함
+ * 1. 갤러리 label 클릭 시 파일 input이 클릭되어야 함
+ * 2. 카메라 label 클릭 시 파일 input이 클릭되어야 함
  * 3. label 클릭 이벤트가 input.click()을 호출해야 함
  * 4. 파일 선택 시 handleFileChange가 호출되어야 함
  */
@@ -181,5 +181,3 @@ describe('UploadForm', () => {
     expect(cameraLabel?.contains(cameraInput)).toBe(true)
   })
 })
-
-

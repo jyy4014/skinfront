@@ -1,4 +1,6 @@
-import { useRef, useCallback, useEffect } from 'react'
+'use client'
+
+import { useRef, useCallback, useEffect, useState } from 'react'
 import * as tf from '@tensorflow/tfjs'
 
 interface FaceAngle {
@@ -45,28 +47,51 @@ export function useFaceAngleDetection(): UseFaceAngleDetectionReturn {
       }
       await tf.ready()
 
-      // MediaPipe Face Mesh 모델 동적 로드
-      const faceLandmarksDetection = await import('@tensorflow-models/face-landmarks-detection')
+      // MediaPipe Face Mesh 모델 동적 로드 (클라이언트 사이드에서만)
+      if (typeof window === 'undefined') {
+        throw new Error('Face angle detection is only available on the client side')
+      }
+
+      // 동적 import를 런타임에만 실행되도록 보장 (빌드 시점 분석 방지)
+      // eval을 사용하여 빌드 시점에 모듈이 분석되지 않도록 함
+      let faceLandmarksDetection: any
+      try {
+        // 동적 import를 문자열로 전달하여 빌드 시점 분석 완전 차단
+        const importPath = '@tensorflow-models/face-landmarks-detection'
+        faceLandmarksDetection = await eval(`import('${importPath}')`)
+      } catch (importError) {
+        console.error('Failed to import face-landmarks-detection:', importError)
+        throw new Error('Face landmarks detection module could not be loaded')
+      }
+
+      // SupportedModels 확인
+      if (!faceLandmarksDetection.SupportedModels || !faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh) {
+        throw new Error('MediaPipeFaceMesh model is not available in this version of face-landmarks-detection')
+      }
       
       detectorRef.current = await faceLandmarksDetection.createDetector(
         faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
         {
-          runtime: 'mediapipe',
-          solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh',
+          runtime: 'tfjs', // mediapipe 대신 tfjs 사용 (SSR 문제 해결)
           refineLandmarks: true,
           maxFaces: 1, // 얼굴 1개만 감지
         }
       )
 
       isInitializedRef.current = true
+      setIsInitialized(true)
     } catch (err) {
       console.error('Face landmarks initialization error:', err)
       isInitializedRef.current = false
+      setIsInitialized(false)
       throw err
     } finally {
       isInitializingRef.current = false
     }
   }, [])
+
+  // isInitialized 상태 관리 (테스트 가능하게 하기 위해)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   /**
    * 3D 좌표를 사용한 정확한 얼굴 각도 계산
@@ -200,7 +225,8 @@ export function useFaceAngleDetection(): UseFaceAngleDetectionReturn {
     }
     isInitializedRef.current = false
     isInitializingRef.current = false
-  }, [])
+    setIsInitialized(false)
+  }, [setIsInitialized])
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -211,7 +237,7 @@ export function useFaceAngleDetection(): UseFaceAngleDetectionReturn {
 
   return {
     detectFaceAngle,
-    isInitialized: isInitializedRef.current,
+    isInitialized,
     initialize,
     cleanup,
   }

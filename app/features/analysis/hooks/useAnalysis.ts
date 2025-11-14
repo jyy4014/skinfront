@@ -6,15 +6,16 @@
 'use client'
 
 import { useMutation } from '@tanstack/react-query'
-import { createEdgeFunctionClient } from '../../../lib/api'
-import type { AnalyzeResponse } from '../../../lib/api'
+import { createEdgeFunctionClient } from '../../../lib/api/edge-functions'
+import type { AnalyzeResponse } from '../../../lib/api/edge-functions'
 
 export interface AnalyzeOptions {
   onProgress?: (progress: number, message: string) => void
 }
 
 export interface AnalyzeRequest {
-  imageUrl: string
+  imageUrls: string[] // 3개 이미지 URL 배열
+  imageAngles: ('front' | 'left' | 'right')[] // 각 이미지의 각도
   userId: string
   accessToken: string
   userProfile?: Record<string, any>
@@ -38,7 +39,8 @@ export function useAnalysis() {
 
       const edgeClient = createEdgeFunctionClient()
       const result = await edgeClient.analyze({
-        image_url: request.imageUrl,
+        image_urls: request.imageUrls, // 배열로 전송
+        image_angles: request.imageAngles, // 각 이미지의 각도
         user_id: request.userId,
         accessToken: request.accessToken,
         user_profile: request.userProfile,

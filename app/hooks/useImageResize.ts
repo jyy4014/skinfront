@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { resizeImage, checkImageQuality } from '@/app/utils/image'
+import { resizeImage, checkImageQuality } from '@/app/lib/image'
 
 interface UseImageResizeOptions {
   maxWidth?: number

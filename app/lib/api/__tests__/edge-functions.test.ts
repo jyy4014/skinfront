@@ -10,6 +10,7 @@ describe('Edge Functions Client', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
   })
 
   it('analyze 함수를 호출할 수 있어야 함', async () => {
