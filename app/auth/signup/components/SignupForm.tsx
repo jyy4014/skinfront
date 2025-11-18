@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabaseClient'
+import { useToast } from '@/app/hooks/useToast'
 import { Mail, Lock, Calendar, Phone, Globe, User, Users } from 'lucide-react'
 
 interface SignupFormData {
@@ -32,6 +33,7 @@ const COUNTRIES = [
 export default function SignupForm() {
   const router = useRouter()
   const supabase = createClient()
+  const toast = useToast()
   const [step, setStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -223,10 +225,11 @@ export default function SignupForm() {
 
       // 3. 이메일 확인이 필요한 경우
       if (!authData.session) {
-        alert('회원가입이 완료되었습니다! 이메일을 확인해주세요. 이메일 확인 후 로그인할 수 있습니다.')
+        toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요. 이메일 확인 후 로그인할 수 있습니다.')
         router.push('/auth/login')
       } else {
         // 즉시 로그인된 경우
+        toast.success('회원가입이 완료되었습니다!')
         router.push('/home')
       }
     } catch (err: any) {
@@ -280,6 +283,8 @@ export default function SignupForm() {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
+                  aria-label="이메일 주소 입력"
+                  aria-required="true"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   placeholder="your@email.com"
                 />
@@ -300,6 +305,10 @@ export default function SignupForm() {
                   required
                   minLength={6}
                   autoComplete="new-password"
+                  aria-label="비밀번호 입력"
+                  aria-required="true"
+                  aria-invalid={passwordError ? 'true' : 'false'}
+                  aria-describedby={passwordError ? 'password-error' : undefined}
                   className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
                     passwordError ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -322,6 +331,10 @@ export default function SignupForm() {
                   onBlur={() => validatePasswordMatch(formData.password, formData.passwordConfirm)}
                   required
                   autoComplete="new-password"
+                  aria-label="비밀번호 확인 입력"
+                  aria-required="true"
+                  aria-invalid={passwordError ? 'true' : 'false'}
+                  aria-describedby={passwordError ? 'password-error' : undefined}
                   className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
                     passwordError ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -333,7 +346,8 @@ export default function SignupForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              aria-label="다음 단계로 진행"
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
             >
               다음 단계
             </button>
@@ -371,6 +385,8 @@ export default function SignupForm() {
                   value={formData.gender}
                   onChange={(e) => handleInputChange('gender', e.target.value)}
                   required
+                  aria-label="성별 선택"
+                  aria-required="true"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white text-gray-900"
                 >
                   <option value="" className="text-gray-900">선택해주세요</option>
@@ -410,6 +426,8 @@ export default function SignupForm() {
                   value={formData.country}
                   onChange={(e) => handleInputChange('country', e.target.value)}
                   required
+                  aria-label="국적 선택"
+                  aria-required="true"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white text-gray-900"
                 >
                   {COUNTRIES.map((country) => (
@@ -444,14 +462,16 @@ export default function SignupForm() {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex-1 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-all"
+                aria-label="이전 단계로 돌아가기"
+                className="flex-1 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 이전
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                aria-label={loading ? '회원가입 처리 중' : '회원가입 완료'}
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
               >
                 {loading ? '가입 중...' : '회원가입'}
               </button>
@@ -463,7 +483,8 @@ export default function SignupForm() {
       <div className="mt-6 text-center">
         <button
           onClick={() => router.push('/auth/login')}
-          className="text-sm text-gray-600 hover:text-pink-500"
+          aria-label="로그인 페이지로 이동"
+          className="text-sm text-gray-600 hover:text-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded px-2 py-1"
         >
           이미 계정이 있으신가요? 로그인
         </button>

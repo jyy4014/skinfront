@@ -70,6 +70,11 @@ export function createEdgeFunctionClient(): EdgeFunctionClient {
           meta: request.meta,
         },
         accessToken: request.accessToken,
+        retry: {
+          enabled: true,
+          maxRetries: 3,
+          initialDelay: 1000,
+        },
       })
     },
 
