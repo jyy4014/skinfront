@@ -11,6 +11,7 @@ export default function BottomNav() {
   const navItems = [
     { href: '/home', icon: Home, label: '홈' },
     { href: '/analyze', icon: Camera, label: '분석' },
+    { href: '/history', icon: History, label: '히스토리' },
     { href: '/profile', icon: User, label: '프로필' },
   ]
 

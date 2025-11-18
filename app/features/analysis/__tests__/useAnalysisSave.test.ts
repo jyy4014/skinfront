@@ -51,7 +51,8 @@ describe('useAnalysisSave', () => {
     await waitFor(async () => {
       const saveResult = await result.current.saveAnalysis({
         userId: 'user123',
-        imageUrl: 'https://example.com/image.jpg',
+        imageUrls: ['https://example.com/image.jpg'],
+        imageAngles: ['front'],
         result: {
           result_id: '123',
           analysis: {},
@@ -75,7 +76,8 @@ describe('useAnalysisSave', () => {
       await expect(
         result.current.saveAnalysis({
           userId: 'user123',
-          imageUrl: 'https://example.com/image.jpg',
+          imageUrls: ['https://example.com/image.jpg'],
+          imageAngles: ['front'],
           result: {
             result_id: '123',
             analysis: {},
@@ -102,7 +104,8 @@ describe('useAnalysisSave', () => {
     await waitFor(async () => {
       await result.current.saveAnalysis({
         userId: 'user123',
-        imageUrl: 'https://example.com/image.jpg',
+        imageUrls: ['https://example.com/image.jpg'],
+        imageAngles: ['front'],
         result: {
           result_id: '123',
           analysis: {},
@@ -115,6 +118,28 @@ describe('useAnalysisSave', () => {
       expect(invalidateQueries).toHaveBeenCalledWith({
         queryKey: QUERY_KEYS.analysis.history(),
       })
+    })
+  })
+
+  // P0-1: result_id가 undefined일 때 에러를 던져야 함
+  it('result_id가 undefined일 때 에러를 던져야 함', async () => {
+    const { result } = renderHook(() => useAnalysisSave(), { wrapper })
+
+    await waitFor(async () => {
+      await expect(
+        result.current.saveAnalysis({
+          userId: 'user123',
+          imageUrls: ['https://example.com/image.jpg'],
+          imageAngles: ['front'],
+          result: {
+            result_id: undefined, // ❌ undefined인 경우
+            analysis: {},
+            mapping: {},
+            nlg: {},
+          },
+          accessToken: 'token123',
+        })
+      ).rejects.toThrow('분석 결과 ID가 없습니다.')
     })
   })
 })

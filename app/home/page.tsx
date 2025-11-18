@@ -5,6 +5,7 @@ import Link from 'next/link'
 import RecommendedTreatments from '@/app/components/home/RecommendedTreatments'
 import BottomNav from '@/app/components/common/BottomNav'
 import { PermissionChecker } from '@/app/components/common/PermissionChecker'
+import ProfileCompletionBanner from '@/app/components/profile/ProfileCompletionBanner'
 import { useAnalysisHistory, useUserProfile } from '@/app/lib/data'
 import { useAuth } from '@/app/lib/auth'
 import { LoadingSpinner } from '@/app/lib/ui'
@@ -53,6 +54,9 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {/* 프로필 완성 배너 */}
+        <ProfileCompletionBanner />
+
         {/* Main CTA - 모바일 앱 스타일 */}
         <div className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-3xl p-6 text-white shadow-2xl">
           <h2 className="text-2xl font-bold mb-3">오늘의 피부 분석하기</h2>

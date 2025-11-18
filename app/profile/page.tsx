@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabaseClient'
 import { useAuth } from '@/app/lib/auth'
 import { useUserProfile, useAnalysisHistory } from '@/app/lib/data'
-import { ArrowLeft, User, Calendar, Mail, LogOut } from 'lucide-react'
+import { ArrowLeft, User, Calendar, Mail, LogOut, Edit } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/app/components/common/BottomNav'
 import { LoadingSpinner, EmptyState } from '@/app/lib/ui'
@@ -63,7 +63,16 @@ export default function ProfilePage() {
 
           {/* 프로필 정보 */}
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">프로필 정보</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">프로필 정보</h2>
+              <Link
+                href="/profile/edit"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm"
+              >
+                <Edit className="w-4 h-4" />
+                수정
+              </Link>
+            </div>
             <div className="bg-gray-50 rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <User className="w-5 h-5 text-gray-600" />

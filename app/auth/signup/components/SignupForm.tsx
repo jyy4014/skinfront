@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabaseClient'
-import { Mail, Lock, Calendar, Phone, Globe, User } from 'lucide-react'
+import { Mail, Lock, Calendar, Phone, Globe, User, Users } from 'lucide-react'
 
 interface SignupFormData {
   email: string
   password: string
   passwordConfirm: string
   birthDate: string
+  gender: string
   phoneNumber: string
   country: string
   nickname: string
@@ -34,11 +35,13 @@ export default function SignupForm() {
   const [step, setStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
   const [formData, setFormData] = useState<SignupFormData>({
     email: '',
     password: '',
     passwordConfirm: '',
     birthDate: '',
+    gender: '',
     phoneNumber: '',
     country: 'KR',
     nickname: '',
@@ -65,11 +68,31 @@ export default function SignupForm() {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
   }
 
+  // 비밀번호 확인 실시간 검증
+  const validatePasswordMatch = (password: string, passwordConfirm: string) => {
+    if (passwordConfirm && password !== passwordConfirm) {
+      setPasswordError('비밀번호가 일치하지 않습니다.')
+    } else {
+      setPasswordError(null)
+    }
+  }
+
   const handleInputChange = (field: keyof SignupFormData, value: string) => {
     if (field === 'phoneNumber') {
       setFormData((prev) => ({ ...prev, [field]: formatPhoneNumber(value) }))
     } else {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => {
+        const newData = { ...prev, [field]: value }
+        
+        // 비밀번호 또는 비밀번호 확인이 변경되면 실시간 검증
+        if (field === 'password' || field === 'passwordConfirm') {
+          const password = field === 'password' ? value : newData.password
+          const passwordConfirm = field === 'passwordConfirm' ? value : newData.passwordConfirm
+          validatePasswordMatch(password, passwordConfirm)
+        }
+        
+        return newData
+      })
     }
   }
 
@@ -77,8 +100,8 @@ export default function SignupForm() {
     e.preventDefault()
     setError(null)
 
-    // 비밀번호 확인 검증
-    if (formData.password !== formData.passwordConfirm) {
+    // 비밀번호 확인 검증 (실시간 검증 결과 확인)
+    if (passwordError || formData.password !== formData.passwordConfirm) {
       setError('비밀번호가 일치하지 않습니다.')
       return
     }
@@ -105,10 +128,24 @@ export default function SignupForm() {
         return
       }
 
-      // 핸드폰번호 검증 (최소 10자리)
+      // 성별 검증 (필수)
+      if (!formData.gender) {
+        setError('성별을 선택해주세요.')
+        setLoading(false)
+        return
+      }
+
+      // 핸드폰번호 검증 (필수, 최소 10자리)
       const phoneNumbers = formData.phoneNumber.replace(/\D/g, '')
       if (phoneNumbers.length < 10) {
         setError('올바른 핸드폰번호를 입력해주세요.')
+        setLoading(false)
+        return
+      }
+
+      // 국적 검증 (필수)
+      if (!formData.country) {
+        setError('국적을 선택해주세요.')
         setLoading(false)
         return
       }
@@ -130,6 +167,7 @@ export default function SignupForm() {
           data: {
             nickname: formData.nickname,
             birth_date: formData.birthDate,
+            gender: formData.gender,
             phone_number: phoneNumbers,
             country: formData.country,
           },
@@ -164,6 +202,7 @@ export default function SignupForm() {
             email: formData.email,
             nickname: formData.nickname,
             birth_date: formData.birthDate,
+            gender: formData.gender,
             phone_number: phoneNumbers,
             country: formData.country,
             signup_source: 'web',
@@ -221,9 +260,9 @@ export default function SignupForm() {
           </div>
         </div>
 
-        {error && (
+        {(error || passwordError) && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-            {error}
+            {error || passwordError}
           </div>
         )}
 
@@ -257,9 +296,13 @@ export default function SignupForm() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
+                  onBlur={() => validatePasswordMatch(formData.password, formData.passwordConfirm)}
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  autoComplete="new-password"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
+                    passwordError ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="••••••••"
                 />
               </div>
@@ -276,8 +319,12 @@ export default function SignupForm() {
                   type="password"
                   value={formData.passwordConfirm}
                   onChange={(e) => handleInputChange('passwordConfirm', e.target.value)}
+                  onBlur={() => validatePasswordMatch(formData.password, formData.passwordConfirm)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  autoComplete="new-password"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
+                    passwordError ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="••••••••"
                 />
               </div>
@@ -312,6 +359,27 @@ export default function SignupForm() {
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">만 13세 이상만 가입 가능합니다</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                성별 <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+                <select
+                  value={formData.gender}
+                  onChange={(e) => handleInputChange('gender', e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">선택해주세요</option>
+                  <option value="male">남성</option>
+                  <option value="female">여성</option>
+                  <option value="other">기타</option>
+                  <option value="prefer_not_to_say">선택 안 함</option>
+                </select>
+              </div>
             </div>
 
             <div>

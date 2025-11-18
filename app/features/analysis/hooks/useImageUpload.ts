@@ -111,9 +111,11 @@ export function useImageUpload() {
       const uploadPromises = files.map(async (file, index) => {
         const angle = angles?.[index] || 'front'
         const fileExt = file.name.split('.').pop()
+        // P1-3: 타임스탬프 중복 방지 (랜덤 서픽스 추가)
         const timestamp = Date.now()
+        const randomSuffix = Math.random().toString(36).substring(2, 9)
         const angleSuffix = `-${angle}`
-        const fileName = `${user.id}/${timestamp}-${index}${angleSuffix}.${fileExt}`
+        const fileName = `${user.id}/${timestamp}-${index}-${randomSuffix}${angleSuffix}.${fileExt}`
         const filePath = fileName
 
         const { error: uploadError } = await supabase.storage

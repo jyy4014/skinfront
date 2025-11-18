@@ -10,8 +10,13 @@ import { QUERY_KEYS } from '../constants'
 
 export interface UpdateProfileData {
   name?: string
-  birth_date?: string
-  gender?: string
+  nickname?: string
+  birth_date?: string | null
+  gender?: string | null
+  phone_number?: string | null
+  nationality?: string | null
+  skin_type?: string | null
+  main_concerns?: string[] | null
 }
 
 /**
@@ -32,16 +37,21 @@ export function useUpdateProfile() {
       if (!user) throw new Error('사용자를 찾을 수 없습니다.')
 
       // users 테이블 업데이트
+      // main_concerns는 JSONB 배열이므로 그대로 전달
+      const updateData: any = {
+        id: user.id,
+        ...data,
+        updated_at: new Date().toISOString(),
+      }
+
+      // main_concerns가 배열인 경우 JSONB로 변환
+      if (data.main_concerns !== undefined) {
+        updateData.main_concerns = Array.isArray(data.main_concerns) ? data.main_concerns : null
+      }
+
       const { error } = await supabase
         .from('users')
-        .upsert(
-          {
-            id: user.id,
-            ...data,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' }
-        )
+        .upsert(updateData, { onConflict: 'id' })
 
       if (error) throw error
       return { ...data }

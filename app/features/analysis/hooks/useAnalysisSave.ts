@@ -28,13 +28,18 @@ export function useAnalysisSave() {
     mutationFn: async (
       request: SaveAnalysisRequest
     ): Promise<SaveAnalysisResponse> => {
+      // P0-1: result_id 검증
+      if (!request.result.result_id) {
+        throw new Error('분석 결과 ID가 없습니다.')
+      }
+
       const edgeClient = createEdgeFunctionClient()
       return edgeClient.save({
         userId: request.userId,
         imageUrls: request.imageUrls, // 배열로 전송
         imageAngles: request.imageAngles, // 각 이미지의 각도
         result: {
-          result_id: request.result.result_id!,
+          result_id: request.result.result_id,
           analysis: request.result.analysis,
           mapping: request.result.mapping,
           nlg: request.result.nlg,

@@ -54,11 +54,17 @@ export function useAnalysisFlow(): UseAnalysisFlowReturn {
         throw new Error('최소 1개 이상의 이미지가 필요합니다.')
       }
 
-      // 3개 이미지인 경우 각도 정보 설정
+      // P2-6: 다양한 파일 개수에 대한 각도 배열 생성
       const angles: ('front' | 'left' | 'right')[] = 
         files.length === 3 
           ? ['front', 'left', 'right'] 
-          : files.map(() => 'front') // 단일 이미지인 경우 기본값
+          : files.length === 1
+          ? ['front']
+          : files.length === 2
+          ? ['front', 'left']
+          : files.slice(0, 3).map((_, i) => 
+              i === 0 ? 'front' : i === 1 ? 'left' : 'right'
+            )
 
       setProgress({ stage: 'upload', progress: 0, message: `${files.length}개 이미지 업로드 중...` })
 
@@ -87,6 +93,11 @@ export function useAnalysisFlow(): UseAnalysisFlowReturn {
       const imageUrls = uploadResults.results.map(r => r.publicUrl)
       const imageAngles = uploadResults.results.map(r => r.angle || 'front') as ('front' | 'left' | 'right')[]
 
+      // P0-2: 이미지 URL과 각도 배열 길이 검증
+      if (imageUrls.length !== imageAngles.length) {
+        throw new Error('이미지 URL과 각도 정보의 개수가 일치하지 않습니다.')
+      }
+
       const analysisResult = await analyze(
         {
           imageUrls,
@@ -103,6 +114,11 @@ export function useAnalysisFlow(): UseAnalysisFlowReturn {
             }),
         }
       )
+
+      // P0-1: result_id 검증
+      if (!analysisResult.result_id) {
+        throw new Error('분석 결과 ID가 없습니다.')
+      }
 
       // 4. 결과 저장 (3개 이미지 URL 저장)
       setProgress({ stage: 'save', progress: 95, message: '결과 저장 중...' })
@@ -122,7 +138,7 @@ export function useAnalysisFlow(): UseAnalysisFlowReturn {
       })
 
       return {
-        result_id: analysisResult.result_id!,
+        result_id: analysisResult.result_id,
         analysis: analysisResult.analysis,
         mapping: analysisResult.mapping,
         nlg: analysisResult.nlg,

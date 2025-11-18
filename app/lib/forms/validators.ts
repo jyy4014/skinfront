@@ -32,6 +32,13 @@ export function validateEmail(email: string): ValidationResult {
 }
 
 /**
+ * 간단한 이메일 검증 (boolean 반환)
+ */
+export function isEmail(email: string): boolean {
+  return validateEmail(email).valid
+}
+
+/**
  * 비밀번호 검증
  */
 export function validatePassword(
@@ -95,6 +102,65 @@ export function validatePassword(
   }
 
   return { valid: true }
+}
+
+/**
+ * 간단한 비밀번호 검증 (boolean 반환)
+ * 최소 8자, 대문자, 소문자, 숫자, 특수문자 포함
+ */
+export function isPassword(password: string): boolean {
+  return validatePassword(password, {
+    minLength: 8,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireNumber: true,
+    requireSpecialChar: true,
+  }).valid
+}
+
+/**
+ * 전화번호 검증
+ */
+export function validatePhoneNumber(phoneNumber: string): ValidationResult {
+  if (!phoneNumber || phoneNumber.trim().length === 0) {
+    return {
+      valid: false,
+      error: '전화번호를 입력해주세요.',
+    }
+  }
+
+  const cleanPhone = phoneNumber.replace(/\D/g, '')
+  if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    return {
+      valid: false,
+      error: '올바른 전화번호를 입력해주세요. (10-11자리)',
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * 간단한 전화번호 검증 (boolean 반환)
+ */
+export function isPhoneNumber(phoneNumber: string): boolean {
+  return validatePhoneNumber(phoneNumber).valid
+}
+
+/**
+ * 최소 나이 검증
+ */
+export function isMinimumAge(birthDate: string, minAge: number): boolean {
+  const birth = new Date(birthDate)
+  const today = new Date()
+  const age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    return age - 1 >= minAge
+  }
+  
+  return age >= minAge
 }
 
 /**
@@ -265,6 +331,3 @@ export function validateAll(
 
   return { valid: true }
 }
-
-
-
