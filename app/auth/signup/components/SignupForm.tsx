@@ -371,13 +371,13 @@ export default function SignupForm() {
                   value={formData.gender}
                   onChange={(e) => handleInputChange('gender', e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white text-gray-900"
                 >
-                  <option value="">선택해주세요</option>
-                  <option value="male">남성</option>
-                  <option value="female">여성</option>
-                  <option value="other">기타</option>
-                  <option value="prefer_not_to_say">선택 안 함</option>
+                  <option value="" className="text-gray-900">선택해주세요</option>
+                  <option value="male" className="text-gray-900">남성</option>
+                  <option value="female" className="text-gray-900">여성</option>
+                  <option value="other" className="text-gray-900">기타</option>
+                  <option value="prefer_not_to_say" className="text-gray-900">선택 안 함</option>
                 </select>
               </div>
             </div>
@@ -410,10 +410,10 @@ export default function SignupForm() {
                   value={formData.country}
                   onChange={(e) => handleInputChange('country', e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent appearance-none bg-white text-gray-900"
                 >
                   {COUNTRIES.map((country) => (
-                    <option key={country.value} value={country.value}>
+                    <option key={country.value} value={country.value} className="text-gray-900">
                       {country.label}
                     </option>
                   ))}

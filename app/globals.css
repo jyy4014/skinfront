@@ -53,3 +53,13 @@ html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Select option 스타일 - 가독성 개선 */
+select option {
+  color: #111827; /* text-gray-900 */
+  background-color: #ffffff;
+}
+
+select {
+  color: #111827; /* text-gray-900 */
+}
