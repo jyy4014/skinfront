@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabaseClient'
 import { useToast } from '@/app/hooks/useToast'
+import { createEdgeFunctionClient } from '@/app/lib/api/edge-functions'
 import { Mail, Lock, Calendar, Phone, Globe, User, Users } from 'lucide-react'
 
 interface SignupFormData {
@@ -32,7 +32,7 @@ const COUNTRIES = [
 
 export default function SignupForm() {
   const router = useRouter()
-  const supabase = createClient()
+  const edgeClient = createEdgeFunctionClient()
   const toast = useToast()
   const [step, setStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
@@ -123,21 +123,19 @@ export default function SignupForm() {
     setError(null)
 
     try {
-      // 생년월일 검증
+      // 클라이언트 검증 (UX용 빠른 피드백)
       if (!validateBirthDate(formData.birthDate)) {
         setError('만 13세 이상만 가입할 수 있습니다.')
         setLoading(false)
         return
       }
 
-      // 성별 검증 (필수)
       if (!formData.gender) {
         setError('성별을 선택해주세요.')
         setLoading(false)
         return
       }
 
-      // 핸드폰번호 검증 (필수, 최소 10자리)
       const phoneNumbers = formData.phoneNumber.replace(/\D/g, '')
       if (phoneNumbers.length < 10) {
         setError('올바른 핸드폰번호를 입력해주세요.')
@@ -145,92 +143,48 @@ export default function SignupForm() {
         return
       }
 
-      // 국적 검증 (필수)
       if (!formData.country) {
         setError('국적을 선택해주세요.')
         setLoading(false)
         return
       }
 
-      // 별명 검증
       if (!formData.nickname.trim()) {
         setError('별명을 입력해주세요.')
         setLoading(false)
         return
       }
 
-      // 1. Supabase Auth 회원가입
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Edge Function 호출 (서버에서 검증 및 저장)
+      const result = await edgeClient.signup({
         email: formData.email,
         password: formData.password,
-        options: {
-          emailRedirectTo: `${origin}/auth/callback`,
-          data: {
-            nickname: formData.nickname,
-            birth_date: formData.birthDate,
-            gender: formData.gender,
-            phone_number: phoneNumbers,
-            country: formData.country,
-          },
-        },
+        nickname: formData.nickname.trim(),
+        birth_date: formData.birthDate,
+        gender: formData.gender,
+        phone_number: phoneNumbers,
+        country: formData.country,
       })
 
-      if (authError) {
-        console.error('Sign up error:', authError)
-        if (authError.message.includes('Email address') && authError.message.includes('invalid')) {
-          setError('이메일 주소가 유효하지 않습니다. 실제 이메일 주소를 사용해주세요.')
-        } else if (authError.message.includes('already registered')) {
-          setError('이미 가입된 이메일입니다.')
-        } else {
-          setError(authError.message || '회원가입 중 오류가 발생했습니다.')
-        }
+      if (result.error) {
+        setError(result.error)
         setLoading(false)
         return
       }
 
-      if (!authData.user) {
+      if (result.status === 'success' && result.user) {
+        // 이메일 확인이 필요한 경우
+        if (result.user.requires_email_confirmation) {
+          toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요. 이메일 확인 후 로그인할 수 있습니다.')
+          router.push('/auth/login')
+        } else {
+          // 즉시 로그인된 경우
+          toast.success('회원가입이 완료되었습니다!')
+          router.push('/home')
+        }
+      } else {
         setError('회원가입에 실패했습니다.')
         setLoading(false)
-        return
-      }
-
-      // 2. users 테이블에 프로필 정보 저장
-      const { error: profileError } = await supabase
-        .from('users')
-        .upsert(
-          {
-            id: authData.user.id,
-            email: formData.email,
-            nickname: formData.nickname,
-            birth_date: formData.birthDate,
-            gender: formData.gender,
-            phone_number: phoneNumbers,
-            country: formData.country,
-            signup_source: 'web',
-            first_visit_at: new Date().toISOString(),
-            last_visit_at: new Date().toISOString(),
-            language: 'ko',
-            is_active: true,
-          },
-          { onConflict: 'id' }
-        )
-
-      if (profileError) {
-        console.error('Profile save error:', profileError)
-        setError('프로필 정보 저장 중 오류가 발생했습니다.')
-        setLoading(false)
-        return
-      }
-
-      // 3. 이메일 확인이 필요한 경우
-      if (!authData.session) {
-        toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요. 이메일 확인 후 로그인할 수 있습니다.')
-        router.push('/auth/login')
-      } else {
-        // 즉시 로그인된 경우
-        toast.success('회원가입이 완료되었습니다!')
-        router.push('/home')
       }
     } catch (err: any) {
       console.error('Signup error:', err)

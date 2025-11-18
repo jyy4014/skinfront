@@ -48,9 +48,30 @@ export interface SaveAnalysisResponse {
   error?: string
 }
 
+export interface SignupRequest {
+  email: string
+  password: string
+  nickname: string
+  birth_date: string
+  gender: string
+  phone_number: string
+  country: string
+}
+
+export interface SignupResponse {
+  status: 'success' | 'error'
+  user?: {
+    id: string
+    email: string
+    requires_email_confirmation: boolean
+  }
+  error?: string
+}
+
 export interface EdgeFunctionClient {
   analyze(request: AnalyzeRequest): Promise<AnalyzeResponse>
   save(request: SaveAnalysisRequest): Promise<SaveAnalysisResponse>
+  signup(request: SignupRequest): Promise<SignupResponse>
 }
 
 /**
@@ -97,6 +118,24 @@ export function createEdgeFunctionClient(): EdgeFunctionClient {
           access_token: request.accessToken,
         },
         accessToken: request.accessToken,
+      })
+    },
+
+    async signup(request: SignupRequest): Promise<SignupResponse> {
+      return callEdgeFunction<SignupResponse>('signup', {
+        method: 'POST',
+        body: {
+          email: request.email,
+          password: request.password,
+          nickname: request.nickname,
+          birth_date: request.birth_date,
+          gender: request.gender,
+          phone_number: request.phone_number,
+          country: request.country,
+        },
+        retry: {
+          enabled: false, // 회원가입은 재시도 불필요
+        },
       })
     },
   }
