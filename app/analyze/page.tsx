@@ -12,7 +12,9 @@ import { classifyError, ErrorType } from '@/app/lib/error'
 import { ImageUploadSection } from '@/app/features/analyze/components/ImageUploadSection'
 import { ImagePreviewSection } from '@/app/features/analyze/components/ImagePreviewSection'
 import { useImagePreview } from '@/app/features/analyze/hooks/useImagePreview'
+import { useImageQuality } from '@/app/hooks/useImageQuality'
 import type { AnalysisResult } from '@/app/features/analyze/types'
+import type { ImageQualityResult } from '@/app/lib/image/quality-check'
 
 // 동적 렌더링 강제 (prerender 방지)
 export const dynamic = 'force-dynamic'
@@ -22,19 +24,38 @@ export default function AnalyzePage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [quality, setQuality] = useState<ImageQualityResult | null>(null)
   
   const { preview, createPreview, clearPreview } = useImagePreview()
   const { uploadAndAnalyze, loading, error, progress } = useAnalysisFlow()
+  const { checkQuality, checking: qualityChecking } = useImageQuality()
   const toast = useToast()
 
   const handleFileSelect = async (files: File[]) => {
     setProcessing(true)
     setImages(files)
+    setQuality(null) // 이전 품질 결과 초기화
     
     try {
       // 첫 번째 이미지(정면)를 미리보기로 사용
       if (files.length > 0) {
         await createPreview(files[0])
+        
+        // 이미지 품질 검사 (첫 번째 이미지 기준)
+        try {
+          const qualityResult = await checkQuality(files[0])
+          setQuality(qualityResult)
+          
+          // 품질이 낮으면 경고 메시지
+          if (!qualityResult.isGood) {
+            toast.warning('이미지 품질이 낮습니다. 재촬영을 권장합니다.')
+          } else if (qualityResult.overallScore >= 80) {
+            toast.success('완벽한 사진이에요! 분석을 시작할 수 있습니다.')
+          }
+        } catch (qualityError) {
+          // 품질 검사 실패는 무시 (분석은 계속 진행 가능)
+          console.warn('Quality check failed:', qualityError)
+        }
       }
     } catch (err) {
       toast.error('이미지 미리보기 생성에 실패했습니다.')
@@ -91,6 +112,11 @@ export default function AnalyzePage() {
     setImages([])
     clearPreview()
     setAnalysisResult(null)
+    setQuality(null)
+  }
+
+  const handleRetake = () => {
+    handleReset()
   }
 
   return (
@@ -141,6 +167,9 @@ export default function AnalyzePage() {
                   onAnalyze={handleAnalyze}
                   analyzing={loading}
                   processing={processing}
+                  quality={quality}
+                  qualityChecking={qualityChecking}
+                  onRetake={handleRetake}
                 />
               </div>
             )}

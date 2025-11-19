@@ -4,12 +4,12 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 
 interface RadarChartProps {
   skinConditionScores: {
-    pigmentation: number
-    acne: number
-    redness: number
-    pores: number
-    wrinkles: number
-  }
+    pigmentation?: number
+    acne?: number
+    redness?: number
+    pores?: number
+    wrinkles?: number
+  } | Record<string, number>
   className?: string
 }
 
@@ -22,30 +22,36 @@ const labels: Record<string, string> = {
 }
 
 export function SkinRadarChart({ skinConditionScores, className }: RadarChartProps) {
+  // Record<string, number> 타입을 처리하기 위해 안전하게 접근
+  const getScore = (key: string): number => {
+    const score = (skinConditionScores as Record<string, number>)[key]
+    return typeof score === 'number' ? score : 0
+  }
+
   const data = [
     {
       name: '색소',
-      value: Math.round(skinConditionScores.pigmentation * 100),
+      value: Math.round(getScore('pigmentation') * 100),
       fullMark: 100,
     },
     {
       name: '여드름',
-      value: Math.round(skinConditionScores.acne * 100),
+      value: Math.round(getScore('acne') * 100),
       fullMark: 100,
     },
     {
       name: '홍조',
-      value: Math.round(skinConditionScores.redness * 100),
+      value: Math.round(getScore('redness') * 100),
       fullMark: 100,
     },
     {
       name: '모공',
-      value: Math.round(skinConditionScores.pores * 100),
+      value: Math.round(getScore('pores') * 100),
       fullMark: 100,
     },
     {
       name: '주름',
-      value: Math.round(skinConditionScores.wrinkles * 100),
+      value: Math.round(getScore('wrinkles') * 100),
       fullMark: 100,
     },
   ]
