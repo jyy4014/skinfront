@@ -2,9 +2,12 @@
 
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
+import { ProgressBar } from '@/app/lib/ui'
 
 interface AnalysisLoadingProps {
   step: string
+  progress?: number
+  stage?: 'upload' | 'analyze' | 'save' | 'complete'
 }
 
 const steps = [
@@ -31,10 +34,30 @@ const steps = [
   },
 ]
 
-export default function AnalysisLoading({ step }: AnalysisLoadingProps) {
+export default function AnalysisLoading({ step, progress: externalProgress, stage }: AnalysisLoadingProps) {
   const currentStepIndex = steps.findIndex(s => step.includes(s.key))
   const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : steps[0]
-  const progress = ((currentStepIndex + 1) / steps.length) * 100
+  
+  // 외부에서 전달된 progress가 있으면 사용, 없으면 단계 기반 계산
+  const progress = externalProgress !== undefined 
+    ? externalProgress 
+    : ((currentStepIndex + 1) / steps.length) * 100
+  
+  // stage에 따른 메시지 매핑
+  const getStageMessage = () => {
+    if (stage === 'upload') {
+      return { message: '이미지 업로드 중...', detail: '사진을 안전하게 업로드하고 있어요.' }
+    } else if (stage === 'analyze') {
+      return { message: currentStep.message, detail: currentStep.detail }
+    } else if (stage === 'save') {
+      return { message: '결과 저장 중...', detail: '분석 결과를 저장하고 있어요.' }
+    } else if (stage === 'complete') {
+      return { message: '분석 완료!', detail: '결과를 준비하고 있어요.' }
+    }
+    return { message: currentStep.message, detail: currentStep.detail }
+  }
+  
+  const stageInfo = getStageMessage()
 
   return (
     <div 
@@ -132,11 +155,22 @@ export default function AnalysisLoading({ step }: AnalysisLoadingProps) {
         {/* 진행 단계 표시 */}
         <div className="space-y-3">
           <h3 className="text-xl font-bold text-gray-900" aria-live="polite">
-            {currentStep.message}
+            {stageInfo.message}
           </h3>
           <p className="text-sm text-gray-600 leading-relaxed">
-            {currentStep.detail}
+            {stageInfo.detail}
           </p>
+        </div>
+
+        {/* 진행률 바 */}
+        <div className="w-full max-w-xs">
+          <ProgressBar 
+            progress={progress} 
+            showLabel={true}
+            variant="pink"
+            size="lg"
+            animated={true}
+          />
         </div>
 
         {/* 단계별 진행률 - 문장형 단계 */}

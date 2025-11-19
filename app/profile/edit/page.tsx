@@ -165,7 +165,7 @@ export default function ProfileEditPage() {
               type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="이름을 입력하세요"
             />
             {errors.name && (
@@ -183,7 +183,7 @@ export default function ProfileEditPage() {
               value={formData.nickname}
               onChange={(e) => handleChange('nickname', e.target.value)}
               maxLength={20}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="별명을 입력하세요 (20자 이내)"
             />
             {errors.nickname && (
@@ -200,7 +200,7 @@ export default function ProfileEditPage() {
               type="date"
               value={formData.birth_date}
               onChange={(e) => handleChange('birth_date', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
             />
           </div>
 
@@ -212,7 +212,7 @@ export default function ProfileEditPage() {
             <select
               value={formData.gender}
               onChange={(e) => handleChange('gender', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
             >
               <option value="">선택하지 않음</option>
               <option value="남성">남성</option>
@@ -231,7 +231,7 @@ export default function ProfileEditPage() {
               value={formData.phone_number}
               onChange={(e) => handlePhoneChange(e.target.value)}
               maxLength={13}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="010-1234-5678"
             />
             {errors.phone_number && (
@@ -247,7 +247,7 @@ export default function ProfileEditPage() {
             <select
               value={formData.nationality}
               onChange={(e) => handleChange('nationality', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
             >
               {countries.map((country) => (
                 <option key={country.code} value={country.code}>

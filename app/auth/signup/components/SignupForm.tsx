@@ -72,7 +72,12 @@ export default function SignupForm() {
 
   // 비밀번호 확인 실시간 검증
   const validatePasswordMatch = (password: string, passwordConfirm: string) => {
-    if (passwordConfirm && password !== passwordConfirm) {
+    if (!passwordConfirm) {
+      // 비밀번호 확인이 비어있으면 에러 없음 (아직 입력 중)
+      setPasswordError(null)
+      return
+    }
+    if (password !== passwordConfirm) {
       setPasswordError('비밀번호가 일치하지 않습니다.')
     } else {
       setPasswordError(null)
@@ -101,6 +106,12 @@ export default function SignupForm() {
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // 이메일 검증
+    if (!formData.email || !formData.email.includes('@')) {
+      setError('유효한 이메일 주소를 입력해주세요.')
+      return
+    }
 
     // 비밀번호 확인 검증 (실시간 검증 결과 확인)
     if (passwordError || formData.password !== formData.passwordConfirm) {
@@ -239,7 +250,7 @@ export default function SignupForm() {
                   required
                   aria-label="이메일 주소 입력"
                   aria-required="true"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
                   placeholder="your@email.com"
                 />
               </div>
@@ -263,7 +274,7 @@ export default function SignupForm() {
                   aria-required="true"
                   aria-invalid={passwordError ? 'true' : 'false'}
                   aria-describedby={passwordError ? 'password-error' : undefined}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white ${
                     passwordError ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
@@ -289,7 +300,7 @@ export default function SignupForm() {
                   aria-required="true"
                   aria-invalid={passwordError ? 'true' : 'false'}
                   aria-describedby={passwordError ? 'password-error' : undefined}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white ${
                     passwordError ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
@@ -323,7 +334,7 @@ export default function SignupForm() {
                   onChange={(e) => handleInputChange('birthDate', e.target.value)}
                   required
                   max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">만 13세 이상만 가입 가능합니다</p>
@@ -364,7 +375,7 @@ export default function SignupForm() {
                   onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                   required
                   maxLength={13}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
                   placeholder="010-1234-5678"
                 />
               </div>
@@ -405,7 +416,7 @@ export default function SignupForm() {
                   onChange={(e) => handleInputChange('nickname', e.target.value.trim())}
                   required
                   maxLength={20}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
                   placeholder="홈화면에서 사용될 별명을 입력해주세요"
                 />
               </div>

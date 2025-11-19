@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { TreatmentCandidate } from '@/app/types'
 import Card from '@/app/components/ui/Card'
 import Button from '@/app/components/ui/Button'
+import { SkinRadarChart } from '@/app/components/analysis/RadarChart'
 
 interface ResultViewProps {
   analysis: {
@@ -80,6 +81,12 @@ export default function ResultView({
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             세부 지표
           </h3>
+          
+          {/* 레이더 차트 */}
+          <div className="mb-6">
+            <SkinRadarChart skinConditionScores={analysis.skin_condition_scores} />
+          </div>
+          
           <div className="grid grid-cols-2 gap-3" role="list" aria-label="피부 상태 세부 지표">
             {Object.entries(analysis.skin_condition_scores).map(
               ([key, value]) => {

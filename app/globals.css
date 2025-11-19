@@ -54,12 +54,47 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Select option 스타일 - 가독성 개선 */
-select option {
-  color: #111827; /* text-gray-900 */
-  background-color: #ffffff;
+/* Input 필드 텍스트 색상 - 가독성 개선 */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="date"],
+input[type="number"],
+textarea {
+  color: #111827 !important; /* text-gray-900 */
+  background-color: #ffffff !important;
 }
 
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="tel"]::placeholder,
+input[type="date"]::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* text-gray-400 */
+  opacity: 1;
+}
+
+/* Select option 스타일 - 가독성 개선 */
 select {
-  color: #111827; /* text-gray-900 */
+  color: #111827 !important; /* text-gray-900 */
+  background-color: #ffffff !important;
+}
+
+select option {
+  color: #111827 !important; /* text-gray-900 */
+  background-color: #ffffff !important;
+}
+
+/* Select가 열렸을 때 옵션 스타일 */
+select:focus option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+
+/* Select가 열렸을 때 선택된 옵션 스타일 */
+select:focus option:checked {
+  color: #111827 !important;
+  background-color: #f3f4f6 !important;
 }

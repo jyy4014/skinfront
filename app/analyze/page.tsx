@@ -63,14 +63,28 @@ export default function AnalyzePage() {
     } catch (err) {
       const classified = classifyError(err)
       
+      // 에러 타입별 처리
       if (classified.type === ErrorType.NETWORK) {
         toast.error(classified.message, 8000)
       } else if (classified.type === ErrorType.MODEL) {
         toast.warning(classified.message, 6000)
+      } else if (classified.type === ErrorType.VALIDATION) {
+        toast.error(classified.message, 5000)
       } else {
         toast.error(classified.message)
       }
+      
+      // 재시도 가능한 에러는 상태에 저장 (재시도 버튼 표시용)
+      if (classified.retryable) {
+        // 에러는 이미 error 상태에 저장됨
+      }
     }
+  }
+  
+  const handleRetry = () => {
+    // 에러 상태 초기화 후 재시도
+    setAnalysisResult(null)
+    handleAnalyze()
   }
 
   const handleReset = () => {
@@ -85,12 +99,32 @@ export default function AnalyzePage() {
 
       <main className="max-w-md mx-auto px-4 py-6">
         {loading && progress ? (
-          <AnalysisLoading step={progress.message} />
+          <AnalysisLoading 
+            step={progress.message} 
+            progress={progress.progress}
+            stage={progress.stage}
+          />
         ) : !analysisResult ? (
           <div>
             {error && (
-              <div className="mb-6">
+              <div className="mb-6 space-y-3">
                 <ErrorMessage error={error} dismissible />
+                {(() => {
+                  const classified = classifyError(error)
+                  if (classified.retryable) {
+                    return (
+                      <button
+                        onClick={handleRetry}
+                        disabled={loading}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
+                        aria-label="다시 시도"
+                      >
+                        {loading ? '재시도 중...' : '다시 시도'}
+                      </button>
+                    )
+                  }
+                  return null
+                })()}
               </div>
             )}
 
