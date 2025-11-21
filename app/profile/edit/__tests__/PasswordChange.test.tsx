@@ -6,7 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { PasswordChangeForm } from '../components/PasswordChangeForm'
 
 // Supabase 클라이언트 모킹
-jest.mock('@/lib/supabaseClient', () => ({
+jest.mock('@/app/lib/supabaseClient', () => ({
   createClient: jest.fn(() => ({
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -68,7 +68,7 @@ describe('PasswordChangeForm', () => {
   })
 
   it('유효한 비밀번호로 변경 시 폼 제출이 가능해야 함', async () => {
-    const { createClient } = require('@/lib/supabaseClient')
+    const { createClient } = require('@/app/lib/supabaseClient')
     const mockSignIn = jest.fn().mockResolvedValue({ data: {}, error: null })
     const mockUpdateUser = jest.fn().mockResolvedValue({ data: {}, error: null })
 

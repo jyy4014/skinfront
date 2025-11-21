@@ -270,13 +270,16 @@ export function isFaceAngleValid(
   // Yaw 각도 확인
   switch (targetAngle) {
     case 'front':
-      return Math.abs(angle.yaw) < threshold
+      // 정면: -threshold ~ threshold 사이 (경계값 포함)
+      return Math.abs(angle.yaw) <= threshold
     case 'left':
-      // 왼쪽으로 15-60도 회전
-      return angle.yaw < -threshold && angle.yaw > -60
+      // 왼쪽으로 threshold 이상 60도 이하 회전 (경계값 명확히)
+      // -60도 < yaw <= -threshold
+      return angle.yaw <= -threshold && angle.yaw > -60
     case 'right':
-      // 오른쪽으로 15-60도 회전
-      return angle.yaw > threshold && angle.yaw < 60
+      // 오른쪽으로 threshold 이상 60도 이하 회전 (경계값 명확히)
+      // threshold <= yaw < 60도
+      return angle.yaw >= threshold && angle.yaw < 60
     default:
       return false
   }

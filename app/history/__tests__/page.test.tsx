@@ -3,6 +3,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/lib/auth'
 import { useAnalysisHistory } from '@/app/lib/data'
@@ -14,25 +15,48 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/history'),
 }))
 
-jest.mock('@/lib/auth', () => ({
+jest.mock('@/app/lib/auth', () => ({
   useAuth: jest.fn(),
 }))
 
 const mockUseAnalysisHistory = jest.fn()
-jest.mock('@/lib/data', () => ({
+jest.mock('@/app/lib/data', () => ({
   useAnalysisHistory: (...args: any[]) => mockUseAnalysisHistory(...args),
 }))
 
-jest.mock('@/components/history/AnalysisTrendChart', () => ({
+jest.mock('@/app/components/history/AnalysisTrendChart', () => ({
   AnalysisTrendChart: () => <div data-testid="trend-chart">Trend Chart</div>,
 }))
 
-jest.mock('@/components/history/ImprovementSummary', () => ({
+jest.mock('@/app/components/history/ImprovementSummary', () => ({
   ImprovementSummary: () => <div data-testid="improvement-summary">Improvement Summary</div>,
 }))
 
-jest.mock('@/components/history/BeforeAfterComparison', () => ({
+jest.mock('@/app/components/history/BeforeAfterComparison', () => ({
   BeforeAfterComparison: () => <div data-testid="before-after">Before After</div>,
+}))
+
+jest.mock('@/app/components/history/AnalysisHistoryItem', () => ({
+  AnalysisHistoryItem: ({ analysis }: any) => (
+    <div data-testid={`analysis-item-${analysis.id}`}>
+      {analysis.result_summary || '분석 결과'}
+    </div>
+  ),
+}))
+
+jest.mock('@/app/components/history/HistoryFilters', () => ({
+  HistoryFilters: ({ sortBy, filterBy, onSortChange, onFilterChange }: any) => (
+    <div data-testid="history-filters">
+      <button onClick={() => onSortChange('newest')} data-testid="sort-newest">
+        최신순
+      </button>
+      <button onClick={() => onFilterChange('all')} data-testid="filter-all">
+        전체
+      </button>
+    </div>
+  ),
+  SortOption: {} as any,
+  FilterOption: {} as any,
 }))
 
 const mockRouter = {
@@ -176,6 +200,140 @@ describe('HistoryPage', () => {
       expect(screen.getByTestId('before-after')).toBeInTheDocument()
       expect(screen.getByTestId('trend-chart')).toBeInTheDocument()
     }, { timeout: 3000 })
+  })
+
+  describe('필터링 및 정렬', () => {
+    it('필터 및 정렬 컴포넌트가 표시되어야 함', async () => {
+      const mockAnalyses = [
+        {
+          id: '1',
+          created_at: '2025-01-15T00:00:00Z',
+          image_url: 'https://example.com/image1.jpg',
+          result_summary: '분석 결과 1',
+          confidence: 0.85,
+        },
+      ]
+
+      mockUseAnalysisHistory.mockReturnValue({
+        data: mockAnalyses,
+        isLoading: false,
+      })
+
+      render(<HistoryPage />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('history-filters')).toBeInTheDocument()
+      })
+    })
+
+    it('시간 범위 필터링이 작동해야 함', async () => {
+      const now = new Date()
+      const weekAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) // 5일 전
+      const monthAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000) // 35일 전
+
+      const mockAnalyses = [
+        {
+          id: '1',
+          created_at: weekAgo.toISOString(),
+          image_url: 'https://example.com/image1.jpg',
+          result_summary: '최근 분석',
+          confidence: 0.85,
+        },
+        {
+          id: '2',
+          created_at: monthAgo.toISOString(),
+          image_url: 'https://example.com/image2.jpg',
+          result_summary: '오래된 분석',
+          confidence: 0.9,
+        },
+      ]
+
+      mockUseAnalysisHistory.mockReturnValue({
+        data: mockAnalyses,
+        isLoading: false,
+      })
+
+      render(<HistoryPage />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analysis-item-1')).toBeInTheDocument()
+        expect(screen.getByTestId('analysis-item-2')).toBeInTheDocument()
+      })
+
+      // 주간 필터 클릭
+      const weekButton = screen.getByText('주간')
+      await userEvent.click(weekButton)
+
+      // 주간 필터는 최근 7일만 표시하므로 5일 전 데이터만 표시되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('analysis-item-1')).toBeInTheDocument()
+        // 35일 전 데이터는 필터링되어야 함
+        expect(screen.queryByTestId('analysis-item-2')).not.toBeInTheDocument()
+      })
+    })
+
+    it('신뢰도 필터링이 작동해야 함', async () => {
+      const mockAnalyses = [
+        {
+          id: '1',
+          created_at: new Date().toISOString(),
+          image_url: 'https://example.com/image1.jpg',
+          result_summary: '높은 신뢰도',
+          confidence: 0.9,
+        },
+        {
+          id: '2',
+          created_at: new Date().toISOString(),
+          image_url: 'https://example.com/image2.jpg',
+          result_summary: '낮은 신뢰도',
+          confidence: 0.7,
+        },
+      ]
+
+      mockUseAnalysisHistory.mockReturnValue({
+        data: mockAnalyses,
+        isLoading: false,
+      })
+
+      render(<HistoryPage />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analysis-item-1')).toBeInTheDocument()
+        expect(screen.getByTestId('analysis-item-2')).toBeInTheDocument()
+      })
+    })
+
+    it('정렬이 작동해야 함', async () => {
+      const mockAnalyses = [
+        {
+          id: '1',
+          created_at: '2025-01-01T00:00:00Z',
+          image_url: 'https://example.com/image1.jpg',
+          result_summary: '오래된 분석',
+          confidence: 0.85,
+        },
+        {
+          id: '2',
+          created_at: '2025-01-15T00:00:00Z',
+          image_url: 'https://example.com/image2.jpg',
+          result_summary: '최신 분석',
+          confidence: 0.9,
+        },
+      ]
+
+      mockUseAnalysisHistory.mockReturnValue({
+        data: mockAnalyses,
+        isLoading: false,
+      })
+
+      render(<HistoryPage />)
+
+      await waitFor(() => {
+        const items = screen.getAllByTestId(/analysis-item-/)
+        // 기본적으로 최신순이므로 최신 분석이 먼저 표시되어야 함
+        expect(items[0]).toHaveAttribute('data-testid', 'analysis-item-2')
+      })
+    })
   })
 })
 

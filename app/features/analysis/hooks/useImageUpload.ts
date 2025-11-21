@@ -56,10 +56,10 @@ export function useImageUpload() {
       }
 
       // 이미지 업로드
+      // UPDATE 방식: 같은 사용자의 원본은 각도별로 고정 경로에 덮어쓰기
       const fileExt = file.name.split('.').pop()
-      const timestamp = Date.now()
-      const angleSuffix = angle ? `-${angle}` : ''
-      const fileName = `${user.id}/${timestamp}${angleSuffix}.${fileExt}`
+      const angleSuffix = angle || 'front'
+      const fileName = `${user.id}/original/${angleSuffix}.${fileExt}`
       const filePath = fileName
 
       onProgress?.(10)
@@ -68,7 +68,7 @@ export function useImageUpload() {
         .from('skin-images')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false,
+          upsert: true, // UPDATE: 같은 경로에 덮어쓰기
         })
 
       if (uploadError) throw uploadError
@@ -107,22 +107,23 @@ export function useImageUpload() {
         throw new Error('인증이 필요합니다.')
       }
 
-      // 각 이미지를 병렬로 업로드
+      // AI 분석 정확도 보장: 원본 이미지 업로드 (최적화 없음)
+      // 저장 시에만 리사이즈하여 스토리지 절약
+      
+      // 각 이미지를 병렬로 업로드 (원본 그대로)
+      // UPDATE 방식: 같은 사용자의 원본은 각도별로 고정 경로에 덮어쓰기
       const uploadPromises = files.map(async (file, index) => {
         const angle = angles?.[index] || 'front'
-        const fileExt = file.name.split('.').pop()
-        // P1-3: 타임스탬프 중복 방지 (랜덤 서픽스 추가)
-        const timestamp = Date.now()
-        const randomSuffix = Math.random().toString(36).substring(2, 9)
-        const angleSuffix = `-${angle}`
-        const fileName = `${user.id}/${timestamp}-${index}-${randomSuffix}${angleSuffix}.${fileExt}`
+        const fileExt = file.name.split('.').pop() || 'jpg'
+        // 각도별 고정 경로 (UPDATE를 위해 항상 같은 경로 사용)
+        const fileName = `${user.id}/original/${angle}.${fileExt}`
         const filePath = fileName
 
         const { error: uploadError } = await supabase.storage
           .from('skin-images')
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: false,
+            upsert: true, // UPDATE: 같은 경로에 덮어쓰기
           })
 
         if (uploadError) throw uploadError
@@ -137,7 +138,7 @@ export function useImageUpload() {
 
         return {
           publicUrl,
-          filePath,
+          filePath, // 원본 파일 경로 (나중에 삭제용)
           userId: user.id,
           angle: angle as 'front' | 'left' | 'right',
         }

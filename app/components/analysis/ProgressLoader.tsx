@@ -3,11 +3,15 @@
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { ProgressBar } from '@/app/lib/ui'
+import { designTokens } from '@/app/styles/design-tokens'
 
 interface AnalysisLoadingProps {
   step: string
   progress?: number
-  stage?: 'upload' | 'analyze' | 'save' | 'complete'
+  stage?: 'upload' | 'analyze' | 'save' | 'complete' | 'retry'
+  estimatedTime?: number // 예상 남은 시간 (초)
+  retryAttempt?: number // 현재 재시도 횟수
+  maxRetries?: number // 최대 재시도 횟수
 }
 
 const steps = [
@@ -34,7 +38,14 @@ const steps = [
   },
 ]
 
-export default function AnalysisLoading({ step, progress: externalProgress, stage }: AnalysisLoadingProps) {
+export default function AnalysisLoading({ 
+  step, 
+  progress: externalProgress, 
+  stage,
+  estimatedTime,
+  retryAttempt,
+  maxRetries,
+}: AnalysisLoadingProps) {
   const currentStepIndex = steps.findIndex(s => step.includes(s.key))
   const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : steps[0]
   
@@ -47,6 +58,11 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
   const getStageMessage = () => {
     if (stage === 'upload') {
       return { message: '이미지 업로드 중...', detail: '사진을 안전하게 업로드하고 있어요.' }
+    } else if (stage === 'retry') {
+      return { 
+        message: `재시도 중... (${retryAttempt || 0}/${maxRetries || 3})`, 
+        detail: '일시적인 오류가 발생했습니다. 자동으로 재시도하고 있어요.' 
+      }
     } else if (stage === 'analyze') {
       return { message: currentStep.message, detail: currentStep.detail }
     } else if (stage === 'save') {
@@ -61,7 +77,7 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
 
   return (
     <div 
-      className="min-h-[60vh] flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 rounded-2xl p-8"
+      className={`min-h-[60vh] flex flex-col items-center justify-center bg-[color:var(--color-surface-muted)] rounded-[var(--radius-2xl)] p-8`}
       role="status"
       aria-live="polite"
       aria-label="AI 분석 진행 중"
@@ -89,7 +105,7 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
               rx="50"
               ry="65"
               fill="none"
-              stroke="#ec4899"
+              stroke="var(--color-primary-500)"
               strokeWidth="3"
               strokeDasharray="314"
               initial={{ strokeDashoffset: 314, opacity: 0 }}
@@ -110,7 +126,7 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
               rx="8"
               ry="5"
               fill="none"
-              stroke="#ec4899"
+              stroke="var(--color-primary-500)"
               strokeWidth="2"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 0, 1] }}
@@ -123,7 +139,7 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
               rx="8"
               ry="5"
               fill="none"
-              stroke="#ec4899"
+              stroke="var(--color-primary-500)"
               strokeWidth="2"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 0, 1] }}
@@ -133,7 +149,7 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
             <motion.path
               d="M 60 100 Q 80 110 100 100"
               fill="none"
-              stroke="#ec4899"
+              stroke="var(--color-primary-500)"
               strokeWidth="2"
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: [0, 1], opacity: [0, 1] }}
@@ -147,19 +163,24 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
               animate={{ rotate: 360 }}
               transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
             >
-              <Sparkles className="w-12 h-12 text-pink-500" aria-hidden="true" />
+              <Sparkles className={`w-12 h-12 text-[color:var(--color-primary-500)]`} aria-hidden="true" />
             </motion.div>
           </div>
         </div>
 
         {/* 진행 단계 표시 */}
         <div className="space-y-3">
-          <h3 className="text-xl font-bold text-gray-900" aria-live="polite">
+          <h3 className={`text-xl font-bold text-[color:var(--color-text-primary)]`} aria-live="polite">
             {stageInfo.message}
           </h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className={`text-sm text-[color:var(--color-text-secondary)] leading-relaxed`}>
             {stageInfo.detail}
           </p>
+          {estimatedTime !== undefined && estimatedTime > 0 && (
+            <p className={`text-xs text-[color:var(--color-text-tertiary)]`} role="status">
+              예상 남은 시간: 약 {Math.ceil(estimatedTime)}초
+            </p>
+          )}
         </div>
 
         {/* 진행률 바 */}
@@ -185,18 +206,18 @@ export default function AnalysisLoading({ step, progress: externalProgress, stag
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  isActive ? 'bg-pink-50 border-2 border-pink-200' : 
-                  isCompleted ? 'bg-green-50' : 'bg-gray-50'
+                className={`flex items-center gap-3 p-3 rounded-[var(--radius-lg)] transition-all ${
+                  isActive ? `bg-[color:var(--color-primary-50)] border-2 border-[color:var(--color-primary-200)]` : 
+                  isCompleted ? `bg-[color:var(--color-success-50)]` : `bg-[color:var(--color-gray-50)]`
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full transition-all ${
-                  isCompleted ? 'bg-green-500' : 
-                  isActive ? 'bg-pink-500 animate-pulse' : 'bg-gray-300'
+                  isCompleted ? `bg-[color:var(--color-success-500)]` : 
+                  isActive ? `bg-[color:var(--color-primary-500)] animate-pulse` : `bg-[color:var(--color-gray-300)]`
                 }`} />
                 <span className={`text-sm transition-colors ${
-                  isActive ? 'text-gray-900 font-semibold' : 
-                  isCompleted ? 'text-gray-600 line-through' : 'text-gray-400'
+                  isActive ? `text-[color:var(--color-text-primary)] font-semibold` : 
+                  isCompleted ? `text-[color:var(--color-text-secondary)] line-through` : `text-[color:var(--color-text-tertiary)]`
                 }`}>
                   {s.stepName}
                 </span>

@@ -7,7 +7,7 @@ import { EDGE_FUNCTIONS } from '../config'
 import type { AnalysisResult, SkinAnalysis } from '@/app/types'
 
 export interface AnalyzeRequest {
-  image_urls: string[] // 3개 이미지 URL 배열 (정면, 좌측, 우측)
+  image_urls: string[] // 이미지 URL 배열 (최소 1개, 정면 필수, 좌/우 선택사항)
   image_angles: ('front' | 'left' | 'right')[] // 각 이미지의 각도 정보
   user_id: string
   accessToken: string
@@ -29,7 +29,7 @@ export interface AnalyzeResponse {
 
 export interface SaveAnalysisRequest {
   userId: string
-  imageUrls: string[] // 3개 이미지 URL 배열
+  imageUrls: string[] // 이미지 URL 배열 (최소 1개, 정면 필수, 좌/우 선택사항)
   imageAngles: ('front' | 'left' | 'right')[] // 각 이미지의 각도
   result: {
     result_id: string
@@ -69,7 +69,7 @@ export interface SignupResponse {
 }
 
 export interface EdgeFunctionClient {
-  analyze(request: AnalyzeRequest): Promise<AnalyzeResponse>
+  analyze(request: AnalyzeRequest, onRetry?: (attempt: number, maxRetries: number, delay: number) => void): Promise<AnalyzeResponse>
   save(request: SaveAnalysisRequest): Promise<SaveAnalysisResponse>
   signup(request: SignupRequest): Promise<SignupResponse>
 }
@@ -79,7 +79,7 @@ export interface EdgeFunctionClient {
  */
 export function createEdgeFunctionClient(): EdgeFunctionClient {
   return {
-    async analyze(request: AnalyzeRequest): Promise<AnalyzeResponse> {
+    async analyze(request: AnalyzeRequest, onRetry?: (attempt: number, maxRetries: number, delay: number) => void): Promise<AnalyzeResponse> {
       return callEdgeFunction<AnalyzeResponse>(EDGE_FUNCTIONS.ANALYZE, {
         method: 'POST',
         body: {
@@ -95,6 +95,7 @@ export function createEdgeFunctionClient(): EdgeFunctionClient {
           enabled: true,
           maxRetries: 3,
           initialDelay: 1000,
+          onRetry,
         },
       })
     },

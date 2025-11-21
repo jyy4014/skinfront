@@ -5,14 +5,20 @@ import { useRouter } from 'next/navigation'
 import { X, User } from 'lucide-react'
 import { calculateProfileCompletion, getProfileCompletionMessage } from '@/app/lib/utils/profileCompletion'
 import { useUserProfile } from '@/app/lib/data'
+import { designTokens } from '@/app/styles/design-tokens'
 
 interface ProfileCompletionBannerProps {
   onDismiss?: () => void
+  userProfile?: any // 홈 화면에서 전달받은 userProfile (중복 호출 방지)
 }
 
-export default function ProfileCompletionBanner({ onDismiss }: ProfileCompletionBannerProps) {
+export default function ProfileCompletionBanner({ onDismiss, userProfile: propUserProfile }: ProfileCompletionBannerProps) {
   const router = useRouter()
-  const { data: userProfile } = useUserProfile()
+  // userProfile이 props로 전달되지 않았을 때만 쿼리 실행
+  const { data: queryUserProfile } = useUserProfile({
+    enabled: !propUserProfile,
+  })
+  const userProfile = propUserProfile || queryUserProfile
   const [dismissed, setDismissed] = useState(false)
 
   // 로컬 스토리지에서 "나중에" 클릭 여부 확인
@@ -61,10 +67,10 @@ export default function ProfileCompletionBanner({ onDismiss }: ProfileCompletion
   }
 
   return (
-    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-5 mb-6 relative">
+    <div className={`bg-[color:var(--color-surface-muted)] border border-[color:var(--color-border-subtle)] rounded-[var(--radius-2xl)] p-5 mb-6 relative`}>
       <button
         onClick={handleDismiss}
-        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+        className={`absolute top-3 right-3 text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-secondary)] transition-colors`}
         aria-label="닫기"
       >
         <X className="w-5 h-5" />
@@ -72,29 +78,35 @@ export default function ProfileCompletionBanner({ onDismiss }: ProfileCompletion
 
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
-            <User className="w-6 h-6 text-white" />
+          <div 
+            className="w-12 h-12 rounded-full flex items-center justify-center"
+            style={{ backgroundImage: designTokens.gradients.primary }}
+          >
+            <User className="w-6 h-6 text-[color:var(--color-on-primary)]" />
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          <h3 className={`text-lg font-semibold text-[color:var(--color-text-primary)] mb-1`}>
             📝 프로필을 완성해주세요
           </h3>
-          <p className="text-sm text-gray-600 mb-3">
+          <p className={`text-sm text-[color:var(--color-text-secondary)] mb-3`}>
             {message}
           </p>
 
           {/* 진행률 바 */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-600">진행률</span>
-              <span className="text-xs font-semibold text-pink-600">{completion.percentage}%</span>
+              <span className={`text-xs text-[color:var(--color-text-secondary)]`}>진행률</span>
+              <span className={`text-xs font-semibold text-[color:var(--color-primary-600)]`}>{completion.percentage}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className={`w-full bg-[color:var(--color-gray-200)] rounded-full h-2`}>
               <div
-                className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${completion.percentage}%` }}
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${completion.percentage}%`,
+                  backgroundImage: designTokens.gradients.primary
+                }}
               />
             </div>
           </div>
@@ -103,13 +115,14 @@ export default function ProfileCompletionBanner({ onDismiss }: ProfileCompletion
           <div className="flex gap-2">
             <button
               onClick={handleComplete}
-              className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:shadow-lg transition-all active:scale-95"
+              className={`flex-1 text-[color:var(--color-on-primary)] px-4 py-2 rounded-[var(--radius-lg)] font-semibold text-sm hover:shadow-[var(--shadow-elevated)] transition-all active:scale-95`}
+              style={{ backgroundImage: designTokens.gradients.primary }}
             >
               지금 완성하기
             </button>
             <button
               onClick={handleLater}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-all"
+              className={`px-4 py-2 border border-[color:var(--color-border-strong)] rounded-[var(--radius-lg)] text-sm text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)] transition-all`}
             >
               나중에
             </button>

@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { getSkinScoresFromAnalysis } from '@/app/lib/utils/skinScores'
 
 interface AnalysisData {
   id: string
@@ -43,21 +44,22 @@ export function ImprovementSummary({ analyses }: ImprovementSummaryProps) {
     const first = analyses[analyses.length - 1] // 가장 오래된 것
     const last = analyses[0] // 가장 최근 것
 
-    const firstScores =
-      first.stage_a_vision_result?.skin_condition_scores ||
-      first.analysis_data?.analysis_a?.skin_condition_scores ||
-      {}
-    const lastScores =
-      last.stage_a_vision_result?.skin_condition_scores ||
-      last.analysis_data?.analysis_a?.skin_condition_scores ||
-      {}
+    const firstScores = getSkinScoresFromAnalysis(first)
+    const lastScores = getSkinScoresFromAnalysis(last)
 
     const conditions = ['pigmentation', 'acne', 'redness', 'pores', 'wrinkles']
     const items: ImprovementItem[] = []
 
     conditions.forEach((condition) => {
-      const firstValue = (firstScores[condition] || 0) * 100
-      const lastValue = (lastScores[condition] || 0) * 100
+      const firstRaw = firstScores[condition] ?? null
+      const lastRaw = lastScores[condition] ?? null
+
+      if (firstRaw === null || lastRaw === null) {
+        return
+      }
+
+      const firstValue = firstRaw * 100
+      const lastValue = lastRaw * 100
       const change = lastValue - firstValue
       const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0
 
@@ -65,6 +67,10 @@ export function ImprovementSummary({ analyses }: ImprovementSummaryProps) {
       // 점수가 높을수록 좋은 것 (pigmentation은 제외, 실제로는 낮을수록 좋음)
       // 일반적으로 모든 항목이 낮을수록 좋다고 가정
       const isImprovement = change < 0
+
+      if (!Number.isFinite(changePercent)) {
+        return
+      }
 
       items.push({
         label: conditionLabels[condition] || condition,
@@ -104,7 +110,7 @@ export function ImprovementSummary({ analyses }: ImprovementSummaryProps) {
               <div>
                 <p className="font-semibold text-gray-900">{item.label}</p>
                 <p className="text-xs text-gray-500">
-                  {item.changePercent.toFixed(1)}% 변화
+                  AI 개선 추이 지표
                 </p>
               </div>
             </div>
@@ -114,7 +120,10 @@ export function ImprovementSummary({ analyses }: ImprovementSummaryProps) {
                   item.trend === 'down' ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {item.trend === 'down' ? '↓' : item.trend === 'up' ? '↑' : '→'}
+                {item.trend === 'down' ? `+${item.changePercent.toFixed(0)}%` : item.trend === 'up' ? `-${item.changePercent.toFixed(0)}%` : '→'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {item.trend === 'down' ? '개선' : item.trend === 'up' ? '악화' : '변화 없음'}
               </p>
             </div>
           </div>

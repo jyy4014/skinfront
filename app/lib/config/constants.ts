@@ -8,12 +8,12 @@
  * 이미지 처리 설정
  */
 export const IMAGE_CONFIG = {
-  /** 최대 이미지 너비 (픽셀) */
+  /** 최대 이미지 너비 (픽셀) - AI 분석에 충분한 해상도 */
   MAX_WIDTH: 1024,
   /** 최대 이미지 높이 (픽셀) */
   MAX_HEIGHT: 1024,
-  /** 이미지 품질 (0-1) */
-  QUALITY: 0.85,
+  /** 이미지 품질 (0-1) - AI 분석 정확도를 위해 높은 품질 유지 */
+  QUALITY: 0.92, // 0.85 → 0.92로 향상 (거의 무손실)
   /** 최대 파일 크기 (바이트) - 10MB */
   MAX_FILE_SIZE: 10 * 1024 * 1024,
   /** 허용되는 이미지 타입 */
@@ -22,6 +22,13 @@ export const IMAGE_CONFIG = {
   MIN_QUALITY_SCORE: 0.1,
   /** 자동 검증 활성화 여부 */
   AUTO_VALIDATE: true,
+  /** 최적화 생략 임계값 (바이트) - 이 크기 이하면 최적화 생략 */
+  SKIP_OPTIMIZATION_SIZE: 2 * 1024 * 1024, // 2MB 이하면 최적화 생략
+  /** 최소 해상도 (픽셀) - AI 분석을 위한 최소 해상도 */
+  // 얼굴 분석에는 600-700px 정도면 충분하지만, 여유를 두고 700px로 설정
+  MIN_WIDTH_FOR_ANALYSIS: 700,
+  /** 최소 해상도 (픽셀) */
+  MIN_HEIGHT_FOR_ANALYSIS: 700,
 } as const
 
 /**

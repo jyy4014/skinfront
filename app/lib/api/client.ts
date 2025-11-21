@@ -170,7 +170,14 @@ import { getSupabaseUrl } from '../config'
 
 export async function callEdgeFunction<T>(
   functionName: string,
-  options: EdgeFunctionOptions & { retry?: { enabled: boolean; maxRetries?: number; initialDelay?: number } } = {}
+  options: EdgeFunctionOptions & { 
+    retry?: { 
+      enabled: boolean
+      maxRetries?: number
+      initialDelay?: number
+      onRetry?: (attempt: number, maxRetries: number, delay: number) => void
+    } 
+  } = {}
 ): Promise<T> {
   const supabaseUrl = getSupabaseUrl()
   const url = `${supabaseUrl}/functions/v1/${functionName}`
@@ -221,7 +228,8 @@ export async function callEdgeFunction<T>(
   return retryWithBackoff(
     performRequest,
     retryConfig.maxRetries,
-    retryConfig.initialDelay
+    retryConfig.initialDelay,
+    options.retry?.onRetry // 재시도 콜백 전달
   ).catch((error) => {
     const classified = classifyError(error)
     if (classified.retryable && (classified.type === ErrorType.NETWORK || classified.type === ErrorType.SERVER)) {

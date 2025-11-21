@@ -62,14 +62,6 @@ export default function SignupForm() {
     return age >= 13
   }
 
-  // 핸드폰번호 포맷팅 (010-1234-5678)
-  const formatPhoneNumber = (value: string): string => {
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 3) return numbers
-    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
-    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
-  }
-
   // 비밀번호 확인 실시간 검증
   const validatePasswordMatch = (password: string, passwordConfirm: string) => {
     if (!passwordConfirm) {
@@ -85,22 +77,18 @@ export default function SignupForm() {
   }
 
   const handleInputChange = (field: keyof SignupFormData, value: string) => {
-    if (field === 'phoneNumber') {
-      setFormData((prev) => ({ ...prev, [field]: formatPhoneNumber(value) }))
-    } else {
-      setFormData((prev) => {
-        const newData = { ...prev, [field]: value }
-        
-        // 비밀번호 또는 비밀번호 확인이 변경되면 실시간 검증
-        if (field === 'password' || field === 'passwordConfirm') {
-          const password = field === 'password' ? value : newData.password
-          const passwordConfirm = field === 'passwordConfirm' ? value : newData.passwordConfirm
-          validatePasswordMatch(password, passwordConfirm)
-        }
-        
-        return newData
-      })
-    }
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value }
+
+      // 비밀번호 또는 비밀번호 확인이 변경되면 실시간 검증
+      if (field === 'password' || field === 'passwordConfirm') {
+        const password = field === 'password' ? value : newData.password
+        const passwordConfirm = field === 'passwordConfirm' ? value : newData.passwordConfirm
+        validatePasswordMatch(password, passwordConfirm)
+      }
+
+      return newData
+    })
   }
 
   const handleStep1Submit = (e: React.FormEvent) => {
@@ -376,7 +364,7 @@ export default function SignupForm() {
                   required
                   maxLength={13}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 bg-white"
-                  placeholder="010-1234-5678"
+                  placeholder="01012345678"
                 />
               </div>
             </div>

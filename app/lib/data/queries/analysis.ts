@@ -4,6 +4,7 @@
 
 'use client'
 
+import { useMemo } from 'react'
 import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 import { createClient } from '../../../lib/supabaseClient'
 import { QUERY_KEYS } from '../constants'
@@ -21,12 +22,14 @@ export interface AnalysisHistoryQueryOptions
 
 /**
  * 분석 히스토리 조회 쿼리
+ * @param options - 쿼리 옵션 (filters, user 등)
  */
 export function useAnalysisHistory(
-  options: AnalysisHistoryQueryOptions = {}
+  options: AnalysisHistoryQueryOptions & { user?: any } = {}
 ) {
-  const { filters = {}, ...queryOptions } = options
-  const supabase = createClient()
+  const { filters = {}, user, ...queryOptions } = options
+  // supabase 클라이언트를 useMemo로 메모이제이션하여 무한 루프 방지
+  const supabase = useMemo(() => createClient(), [])
 
   return useQuery({
     queryKey: QUERY_KEYS.analysis.history(filters),
@@ -40,22 +43,31 @@ export function useAnalysisHistory(
         .range((page - 1) * limit, page * limit - 1)
 
       // userId가 없으면 현재 사용자 ID 사용
-      if (!userId) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+      let currentUserId = userId
+      if (!currentUserId) {
         if (user) {
-          query = query.eq('user_id', user.id)
+          currentUserId = user.id
+        } else {
+          const {
+            data: { user: fetchedUser },
+          } = await supabase.auth.getUser()
+          if (fetchedUser) {
+            currentUserId = fetchedUser.id
+          } else {
+            // 사용자가 없으면 빈 배열 반환
+            return []
+          }
         }
-      } else {
-        query = query.eq('user_id', userId)
       }
+      
+      query = query.eq('user_id', currentUserId)
 
       const { data, error } = await query
 
       if (error) throw error
-      return data
+      return data || []
     },
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
     ...queryOptions,
   })
 }
@@ -67,7 +79,8 @@ export function useAnalysisById(
   id: string,
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
-  const supabase = createClient()
+  // supabase 클라이언트를 useMemo로 메모이제이션하여 무한 루프 방지
+  const supabase = useMemo(() => createClient(), [])
 
   return useQuery({
     queryKey: QUERY_KEYS.analysis.byId(id),
@@ -93,7 +106,8 @@ export function useAnalysisByUserId(
   userId: string,
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
-  const supabase = createClient()
+  // supabase 클라이언트를 useMemo로 메모이제이션하여 무한 루프 방지
+  const supabase = useMemo(() => createClient(), [])
 
   return useQuery({
     queryKey: QUERY_KEYS.analysis.byUserId(userId),

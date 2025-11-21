@@ -77,16 +77,13 @@ describe('useImageUpload', () => {
       // upload가 호출된 횟수 확인
       expect(mockUpload).toHaveBeenCalledTimes(2)
 
-      // 파일명에 랜덤 서픽스가 포함되어 있는지 확인
-      const firstCall = mockUpload.mock.calls[0][1] as File
-      const secondCall = mockUpload.mock.calls[1][1] as File
-      
-      // 파일명 패턴 확인 (타임스탬프-인덱스-랜덤서픽스-각도.확장자)
+      // UPDATE 방식: 고정 경로 사용
       const firstFileName = mockUpload.mock.calls[0][0] as string
       const secondFileName = mockUpload.mock.calls[1][0] as string
 
-      // 파일명에 랜덤 서픽스가 포함되어 있는지 확인 (9자리 영숫자)
-      expect(firstFileName).toMatch(/user123\/\d+-\d+-[a-z0-9]{7}-front\.jpg/)
+      // 파일명이 고정 경로인지 확인 (UPDATE 방식)
+      expect(firstFileName).toMatch(/user123\/original\/front\.jpg/)
+      expect(secondFileName).toMatch(/user123\/original\/left\.jpg/)
       expect(secondFileName).toMatch(/user123\/\d+-\d+-[a-z0-9]{7}-left\.jpg/)
     })
   })

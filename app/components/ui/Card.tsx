@@ -2,6 +2,7 @@
 
 import { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/app/utils/cn'
+import { designTokens } from '@/app/styles/design-tokens'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
@@ -15,9 +16,22 @@ export default function Card({
   ...props 
 }: CardProps) {
   const variants = {
-    default: 'bg-white rounded-2xl shadow-lg',
-    elevated: 'bg-white rounded-2xl shadow-xl',
-    outlined: 'bg-white rounded-2xl border-2 border-gray-200',
+    default: cn(
+      `bg-[color:${designTokens.colors.surface.elevated}]`,
+      'rounded-[var(--radius-2xl)]',
+      'shadow-[var(--shadow-soft)]',
+      `border border-[color:${designTokens.colors.border.subtle}]`
+    ),
+    elevated: cn(
+      `bg-[color:${designTokens.colors.surface.elevated}]`,
+      'rounded-[var(--radius-2xl)]',
+      'shadow-[var(--shadow-elevated)]'
+    ),
+    outlined: cn(
+      `bg-[color:${designTokens.colors.surface.base}]`,
+      'rounded-[var(--radius-2xl)]',
+      `border-2 border-[color:${designTokens.colors.border.strong}]`
+    ),
   }
   
   return (

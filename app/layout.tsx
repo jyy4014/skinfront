@@ -4,6 +4,7 @@ import "./globals.css";
 import QueryProvider from "./providers/QueryProvider";
 import ToastProvider from "./components/common/ToastProvider";
 import { CameraPermissionProvider } from "./providers/CameraPermissionProvider";
+import RootLayout from "./RootLayout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,29 +21,10 @@ export const metadata: Metadata = {
   description: "AI가 분석하는 당신의 피부, 맞춤형 시술을 추천받으세요",
 };
 
-export default function RootLayout({
+export default function Layout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="ko">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-        <meta name="theme-color" content="#ec4899" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <QueryProvider>
-          <CameraPermissionProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </CameraPermissionProvider>
-        </QueryProvider>
-      </body>
-    </html>
-  );
+  return <RootLayout geistSans={geistSans} geistMono={geistMono}>{children}</RootLayout>
 }

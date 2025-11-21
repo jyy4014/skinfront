@@ -27,14 +27,6 @@ export default function LoginForm() {
     return 'email'
   }
 
-  // 전화번호 포맷팅 (010-1234-5678)
-  const formatPhoneNumber = (value: string): string => {
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 3) return numbers
-    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
-    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
-  }
-
   // 전화번호로 이메일 찾기
   const findEmailByPhone = async (phoneNumber: string): Promise<string | null> => {
     try {
@@ -184,18 +176,11 @@ export default function LoginForm() {
             type="text"
             value={identifier}
             onChange={(e) => {
-              const value = e.target.value
-              // 숫자만 입력되면 전화번호로 포맷팅, @가 포함되면 이메일로 처리
-              if (!value.includes('@') && /^\d*[-]?\d*[-]?\d*$/.test(value.replace(/\D/g, ''))) {
-                setIdentifier(formatPhoneNumber(value))
-              } else {
-                setIdentifier(value)
-              }
+              setIdentifier(e.target.value)
             }}
             required
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
             placeholder="이메일 또는 전화번호 입력"
-            maxLength={isPhone ? 13 : undefined}
           />
         </div>
         {identifier && (

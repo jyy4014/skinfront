@@ -31,6 +31,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={item.href === '/history' ? false : undefined}
               className="flex flex-col items-center justify-center flex-1 h-full relative focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded-t-lg"
               aria-label={`${item.label} 페이지로 이동`}
               aria-current={isActive ? 'page' : undefined}

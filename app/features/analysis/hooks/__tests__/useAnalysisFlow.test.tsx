@@ -4,7 +4,7 @@
  * 전체 분석 플로우 오케스트레이션 테스트
  */
 
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useAnalysisFlow } from '../useAnalysisFlow'
 import { useImageUpload } from '../useImageUpload'
 import { useAnalysis } from '../useAnalysis'

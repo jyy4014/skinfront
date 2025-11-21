@@ -70,7 +70,7 @@ export function CameraCapture({
       <div className="absolute top-0 left-0 right-0 z-10 p-4 flex flex-col gap-2 bg-gradient-to-b from-black/70 to-transparent">
         <div className="flex justify-between items-center">
           <h2 className="text-white font-semibold text-lg">
-            {angleLabel} 촬영
+            Skin Scan
           </h2>
           <button
             onClick={() => {

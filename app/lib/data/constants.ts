@@ -26,6 +26,8 @@ export const QUERY_KEYS = {
     byId: (id: string) => ['treatment', id] as const,
     recommended: (userId?: string) =>
       ['treatment', 'recommended', userId] as const,
+    fromAnalysis: (treatmentId: string) =>
+      ['treatment', 'fromAnalysis', treatmentId] as const,
   },
 } as const
 

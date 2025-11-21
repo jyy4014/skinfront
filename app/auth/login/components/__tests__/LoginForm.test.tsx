@@ -13,7 +13,7 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
 
-jest.mock('@/lib/supabaseClient', () => ({
+jest.mock('@/app/lib/supabaseClient', () => ({
   createClient: jest.fn(),
 }))
 
@@ -59,14 +59,23 @@ describe('LoginForm', () => {
       })
     })
 
-    it('전화번호 입력 시 자동 포맷팅되어야 함 (010-1234-5678)', async () => {
+    it('숫자로 시작하는 이메일도 이메일로 처리되어야 함', async () => {
       render(<LoginForm />)
 
       const input = screen.getByPlaceholderText('이메일 또는 전화번호 입력')
+
+      // 숫자만 입력된 상태에서는 전화번호로 인식
       fireEvent.change(input, { target: { value: '01012345678' } })
+      await waitFor(() => {
+        expect(screen.getByText('전화번호로 로그인')).toBeInTheDocument()
+      })
+
+      // 이메일 도메인을 추가하면 이메일로 전환되어야 함
+      fireEvent.change(input, { target: { value: '01012345678@example.com' } })
 
       await waitFor(() => {
-        expect(input).toHaveValue('010-1234-5678')
+        expect(screen.getByText('이메일로 로그인')).toBeInTheDocument()
+        expect(input).toHaveValue('01012345678@example.com')
       })
     })
   })

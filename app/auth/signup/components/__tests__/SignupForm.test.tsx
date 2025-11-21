@@ -13,8 +13,15 @@ import SignupForm from '../SignupForm'
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
+  useRouter: jest.fn(),
+}))
+
+jest.mock('@/app/hooks/useToast', () => ({
+  useToast: () => ({
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warning: jest.fn(),
   }),
 }))
 
@@ -32,6 +39,8 @@ jest.mock('@/app/lib/supabaseClient', () => ({
 describe('SignupForm', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    const { useRouter } = require('next/navigation')
+    useRouter.mockReturnValue({ push: jest.fn() })
   })
 
   // 실시간 비밀번호 확인 검증 테스트
@@ -179,7 +188,7 @@ describe('SignupForm', () => {
     })
   })
 
-  it('핸드폰번호와 국적은 선택사항이어야 함', async () => {
+  it('핸드폰번호와 국적은 필수 항목이어야 함', async () => {
     render(<SignupForm />)
 
     // Step 1 완료
@@ -195,12 +204,12 @@ describe('SignupForm', () => {
 
     // Step 2에서 핸드폰번호와 국적이 선택사항인지 확인
     await waitFor(() => {
-      const phoneInput = screen.getByPlaceholderText(/010-1234-5678/i)
+      const phoneInput = screen.getByPlaceholderText(/01012345678/i)
       const countrySelect = screen.getByLabelText(/국적/i)
       
-      // required 속성이 없어야 함 (선택사항)
-      expect(phoneInput).not.toBeRequired()
-      expect(countrySelect).not.toBeRequired()
+      // 필수 항목이어야 함
+      expect(phoneInput).toBeRequired()
+      expect(countrySelect).toBeRequired()
     })
   })
 })

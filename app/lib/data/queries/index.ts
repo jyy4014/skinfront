@@ -7,3 +7,10 @@ export type { AnalysisHistoryFilters, AnalysisHistoryQueryOptions } from './anal
 
 export { useUserProfile } from './user'
 
+export {
+  useTreatmentById,
+  useRecommendedTreatments,
+  useFavoriteTreatments,
+  useTreatmentFromRecentAnalysis,
+} from './treatment'
+

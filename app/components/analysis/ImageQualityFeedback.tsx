@@ -8,6 +8,7 @@
 import { CheckCircle2, AlertCircle, XCircle } from 'lucide-react'
 import { ImageQualityResult, getQualityMessage } from '@/app/lib/image/quality-check'
 import Card from '@/app/components/ui/Card'
+import { designTokens } from '@/app/styles/design-tokens'
 
 interface ImageQualityFeedbackProps {
   quality: ImageQualityResult
@@ -25,17 +26,18 @@ export function ImageQualityFeedback({
   const IconComponent =
     icon === 'check-circle' ? CheckCircle2 : icon === 'alert-circle' ? AlertCircle : XCircle
 
+  // 디자인 토큰 사용
   const colorClasses = {
-    green: 'text-green-600 bg-green-50 border-green-200',
-    yellow: 'text-yellow-600 bg-yellow-50 border-yellow-200',
-    red: 'text-red-600 bg-red-50 border-red-200',
+    green: 'text-[color:var(--color-success-500)] bg-[color:var(--color-success-50)] border-[color:var(--color-success-200)]',
+    yellow: 'text-[color:var(--color-warning-500)] bg-[color:var(--color-warning-50)] border-[color:var(--color-warning-200)]',
+    red: `text-[color:${designTokens.colors.danger[500]}] bg-[color:var(--color-danger-50)] border-[color:var(--color-danger-200)]`,
   }
 
   return (
     <Card className={`p-4 ${className}`}>
       <div className="space-y-4">
         {/* 전체 점수 및 메시지 */}
-        <div className={`flex items-center gap-3 p-3 rounded-lg border-2 ${colorClasses[color]}`}>
+        <div className={`flex items-center gap-3 p-3 rounded-[var(--radius-lg)] border-2 ${colorClasses[color]}`}>
           <IconComponent className="w-5 h-5 flex-shrink-0" />
           <div className="flex-1">
             <p className="font-semibold text-sm">{message}</p>
@@ -117,11 +119,11 @@ export function ImageQualityFeedback({
           <div className="space-y-2">
             {quality.issues.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-red-600 mb-1">발견된 문제:</p>
-                <ul className="text-xs text-gray-700 space-y-1">
+                <p className={`text-xs font-semibold text-[color:${designTokens.colors.danger[500]}] mb-1`}>발견된 문제:</p>
+                <ul className="text-xs text-[color:var(--color-text-primary)] space-y-1">
                   {quality.issues.map((issue, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="text-red-500">•</span>
+                      <span className={`text-[color:${designTokens.colors.danger[500]}]`}>•</span>
                       <span>{issue}</span>
                     </li>
                   ))}
@@ -131,11 +133,11 @@ export function ImageQualityFeedback({
 
             {quality.recommendations.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-blue-600 mb-1">개선 권장사항:</p>
-                <ul className="text-xs text-gray-700 space-y-1">
+                <p className={`text-xs font-semibold text-[color:${designTokens.colors.primary[500]}] mb-1`}>개선 권장사항:</p>
+                <ul className="text-xs text-[color:var(--color-text-primary)] space-y-1">
                   {quality.recommendations.map((rec, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="text-blue-500">•</span>
+                      <span className={`text-[color:${designTokens.colors.primary[500]}]`}>•</span>
                       <span>{rec}</span>
                     </li>
                   ))}
@@ -149,7 +151,8 @@ export function ImageQualityFeedback({
         {!quality.isGood && (
           <button
             onClick={onRetake}
-            className="w-full px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium"
+            className={`w-full px-4 py-2 text-[color:var(--color-on-primary)] rounded-[var(--radius-lg)] transition-colors text-sm font-medium shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)]`}
+            style={{ backgroundColor: designTokens.colors.primary[500] }}
             aria-label="재촬영하기"
             disabled={!onRetake}
           >

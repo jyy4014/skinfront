@@ -44,6 +44,12 @@ export type TreatmentCandidate = {
   score: number // 0-1 (증상 기반 적합도 점수)
   expected_improvement_pct?: number
   notes?: string[]
+  // AI 기반 추가 필드 (Stage B에서 생성)
+  cost_range?: { min: number; max: number; currency: string }
+  frequency?: string
+  treatment_cycle?: string
+  clinical_evidence?: string
+  latest_technology?: boolean
 }
 
 export type Treatment = {

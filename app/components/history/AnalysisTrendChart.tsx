@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { getSkinScoresFromAnalysis } from '@/app/lib/utils/skinScores'
 
 interface AnalysisData {
   id: string
@@ -33,11 +34,7 @@ export function AnalysisTrendChart({ analyses }: AnalysisTrendChartProps) {
   const chartData = useMemo(() => {
     return analyses
       .map((analysis) => {
-        // skin_condition_scores 추출
-        const scores =
-          analysis.stage_a_vision_result?.skin_condition_scores ||
-          analysis.analysis_data?.analysis_a?.skin_condition_scores ||
-          {}
+        const scores = getSkinScoresFromAnalysis(analysis)
 
         const date = new Date(analysis.created_at)
         const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`

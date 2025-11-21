@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { getSkinScoresFromAnalysis } from '@/app/lib/utils/skinScores'
 
 interface AnalysisData {
   id: string
@@ -34,14 +35,8 @@ export function BeforeAfterComparison({ analyses }: BeforeAfterComparisonProps) 
   const beforeImage = before.image_url || before.image_urls?.[0]
   const afterImage = after.image_url || after.image_urls?.[0]
 
-  const beforeScores =
-    before.stage_a_vision_result?.skin_condition_scores ||
-    before.analysis_data?.analysis_a?.skin_condition_scores ||
-    {}
-  const afterScores =
-    after.stage_a_vision_result?.skin_condition_scores ||
-    after.analysis_data?.analysis_a?.skin_condition_scores ||
-    {}
+  const beforeScores = getSkinScoresFromAnalysis(before)
+  const afterScores = getSkinScoresFromAnalysis(after)
 
   const conditionLabels: Record<string, string> = {
     pigmentation: '색소',
@@ -72,6 +67,18 @@ export function BeforeAfterComparison({ analyses }: BeforeAfterComparisonProps) 
                 src={beforeImage}
                 alt="Before"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.image-placeholder')) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder flex items-center justify-center h-full text-gray-400 text-xs';
+                    placeholder.textContent = '이미지 없음';
+                    parent.appendChild(placeholder);
+                  }
+                }}
+                loading="lazy"
               />
             </div>
             <p className="text-xs text-gray-600 mt-2 text-center font-medium">Before</p>
@@ -88,6 +95,18 @@ export function BeforeAfterComparison({ analyses }: BeforeAfterComparisonProps) 
                 src={afterImage}
                 alt="After"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.image-placeholder')) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder flex items-center justify-center h-full text-gray-400 text-xs';
+                    placeholder.textContent = '이미지 없음';
+                    parent.appendChild(placeholder);
+                  }
+                }}
+                loading="lazy"
               />
             </div>
             <p className="text-xs text-gray-600 mt-2 text-center font-medium">After</p>
@@ -98,10 +117,29 @@ export function BeforeAfterComparison({ analyses }: BeforeAfterComparisonProps) 
       {/* 점수 비교 */}
       <div className="space-y-3">
         {conditions.map((condition) => {
-          const beforeValue = Math.round((beforeScores[condition] || 0) * 100)
-          const afterValue = Math.round((afterScores[condition] || 0) * 100)
-          const change = afterValue - beforeValue
-          const isImprovement = change < 0 // 낮을수록 좋음
+          const beforeRaw = beforeScores[condition] ?? null
+          const afterRaw = afterScores[condition] ?? null
+          const beforeValue =
+            beforeRaw !== null ? Math.round(beforeRaw * 100) : null
+          const afterValue =
+            afterRaw !== null ? Math.round(afterRaw * 100) : null
+          const change =
+            beforeValue !== null && afterValue !== null
+              ? afterValue - beforeValue
+              : null
+          const isImprovement = change !== null ? change < 0 : null // 낮을수록 좋음
+          const beforeWidth =
+            beforeValue !== null
+              ? Math.min(100, Math.max(0, beforeValue))
+              : 0
+          const afterWidth =
+            afterValue !== null ? Math.min(100, Math.max(0, afterValue)) : 0
+          const afterBarColor =
+            isImprovement === null
+              ? 'bg-gray-400'
+              : isImprovement
+              ? 'bg-green-500'
+              : 'bg-red-500'
 
           return (
             <div key={condition} className="bg-gray-50 rounded-xl p-4">
@@ -109,35 +147,37 @@ export function BeforeAfterComparison({ analyses }: BeforeAfterComparisonProps) 
                 <span className="text-sm font-semibold text-gray-900">
                   {conditionLabels[condition] || condition}
                 </span>
-                <span
-                  className={`text-sm font-bold ${
-                    isImprovement ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {isImprovement ? '↓' : '↑'} {Math.abs(change)}%
-                </span>
+                {change !== null ? (
+                  <span
+                    className={`text-sm font-bold ${
+                      isImprovement ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {isImprovement ? '↓' : '↑'} {Math.abs(change)}%
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">데이터 없음</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-pink-500 h-2 rounded-full transition-all"
-                    style={{ width: `${beforeValue}%` }}
+                    style={{ width: `${beforeWidth}%` }}
                   />
                 </div>
                 <span className="text-xs text-gray-600 w-12 text-right">
-                  {beforeValue}%
+                  {beforeValue !== null ? `${beforeValue}%` : '--'}
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full transition-all ${
-                      isImprovement ? 'bg-green-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${afterValue}%` }}
+                    className={`h-2 rounded-full transition-all ${afterBarColor}`}
+                    style={{ width: `${afterWidth}%` }}
                   />
                 </div>
                 <span className="text-xs text-gray-600 w-12 text-right">
-                  {afterValue}%
+                  {afterValue !== null ? `${afterValue}%` : '--'}
                 </span>
               </div>
             </div>

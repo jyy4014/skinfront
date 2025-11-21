@@ -2,7 +2,7 @@
  * 인증 상태 관리 훅
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '../../supabaseClient'
 import type { User } from '@supabase/supabase-js'
 
@@ -21,7 +21,8 @@ export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const supabase = createClient()
+  // supabase 클라이언트를 useMemo로 메모이제이션하여 무한 루프 방지
+  const supabase = useMemo(() => createClient(), [])
 
   const fetchUser = async () => {
     try {

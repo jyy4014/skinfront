@@ -11,18 +11,19 @@ import ProfileEditPage from '../page'
 // 모킹
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(() => '/profile/edit'),
 }))
 
-jest.mock('@/lib/auth', () => ({
+jest.mock('@/app/lib/auth', () => ({
   useAuth: jest.fn(),
 }))
 
-jest.mock('@/lib/data', () => ({
+jest.mock('@/app/lib/data', () => ({
   useUserProfile: jest.fn(),
   useUpdateProfile: jest.fn(),
 }))
 
-jest.mock('@/components/common/ToastProvider', () => ({
+jest.mock('@/app/components/common/ToastProvider', () => ({
   useToastContext: jest.fn(() => ({
     toast: jest.fn(),
   })),
@@ -48,7 +49,7 @@ const mockUserProfile = {
     birth_date: '1990-01-01',
     gender: '여성',
     phone_number: '01012345678',
-    nationality: 'KR',
+    country: 'KR',
   },
 }
 
