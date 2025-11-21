@@ -1,12 +1,12 @@
 import QueryProvider from "./providers/QueryProvider";
 import ToastProvider from "./components/common/ToastProvider";
 import { CameraPermissionProvider } from "./providers/CameraPermissionProvider";
-import type { Geist, Geist_Mono } from "next/font/google";
+import type { NextFontWithVariable } from "next/dist/compiled/@next/font";
 
 interface RootLayoutProps {
   children: React.ReactNode;
-  geistSans: ReturnType<typeof Geist>;
-  geistMono: ReturnType<typeof Geist_Mono>;
+  geistSans: NextFontWithVariable;
+  geistMono: NextFontWithVariable;
 }
 
 export default function RootLayout({ children, geistSans, geistMono }: RootLayoutProps) {

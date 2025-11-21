@@ -53,7 +53,7 @@ export default function AnalysisDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 pb-20">
         <Header title="분석 결과" showBack backHref="/history" />
         <main className="max-w-md mx-auto px-4 py-6">
-          <ErrorMessage message="분석 결과를 찾을 수 없습니다." />
+          <ErrorMessage error="분석 결과를 찾을 수 없습니다." />
         </main>
         <BottomNav />
       </div>

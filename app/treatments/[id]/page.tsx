@@ -77,7 +77,7 @@ export default function TreatmentDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-pink-50 to-purple-50 pb-20">
         <Header title="시술 상세" showBack backHref="/home" />
         <main className="max-w-md mx-auto px-4 py-6">
-          <ErrorMessage message="시술 정보를 찾을 수 없습니다." />
+          <ErrorMessage error="시술 정보를 찾을 수 없습니다." />
         </main>
         <BottomNav />
       </div>
