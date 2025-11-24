@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { Bell, History, MapPin, BookOpen, Gift, ChevronRight, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuth } from '@/app/lib/auth'
 import ARCamera from '@/app/components/ARCamera'
 
 // 원형 프로그레스 바 컴포넌트
@@ -93,7 +92,6 @@ const recommendedTreatments = [
 ]
 
 export default function HomePage() {
-  const { user, loading } = useAuth()
   const [scrollY, setScrollY] = useState(0)
   const [isScanOpen, setIsScanOpen] = useState(false)
 
@@ -125,7 +123,7 @@ export default function HomePage() {
     }
   }, [isScanOpen])
 
-  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || '회원'
+  const userName = '회원'
   const skinScore = 85
   const encouragementMessages = [
     '수분 관리가 아주 잘 되고 있어요! 💧',
@@ -134,14 +132,6 @@ export default function HomePage() {
     '탄력이 뛰어난 피부예요! 💪',
   ]
   const encouragementMessage = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)]
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">로딩 중...</div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen pb-28">
