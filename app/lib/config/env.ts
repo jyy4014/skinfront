@@ -3,40 +3,12 @@
  */
 
 /**
- * 필수 환경 변수 목록
- */
-const REQUIRED_ENV_VARS = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-] as const
-
-/**
  * 환경 변수 타입 정의
  */
 export interface EnvConfig {
   supabase: {
     url: string
     anonKey: string
-  }
-}
-
-/**
- * 환경 변수 검증
- */
-function validateEnv(): void {
-  const missing: string[] = []
-  
-  for (const key of REQUIRED_ENV_VARS) {
-    if (!process.env[key]) {
-      missing.push(key)
-    }
-  }
-  
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}\n` +
-      'Please set these variables in your .env.local file.'
-    )
   }
 }
 
