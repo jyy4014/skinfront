@@ -210,11 +210,11 @@ export default function ARCamera({ className = '' }: ARCameraProps) {
     screenHeight: number,
     faceBounds: { centerX: number; centerY: number; width: number; height: number }
   ): boolean => {
-    // 가이드라인 크기 (화면 너비의 85%, 높이의 65%) - 확대됨
-    const guideWidth = screenWidth * 0.85
-    const guideHeight = screenHeight * 0.65
+    // 가이드라인 크기 (화면 너비의 70%, 높이의 55%) - 얼굴 모양에 맞춘 타원형
+    const guideWidth = screenWidth * 0.7
+    const guideHeight = screenHeight * 0.55
     const guideCenterX = screenWidth / 2
-    const guideCenterY = screenHeight / 2
+    const guideCenterY = screenHeight * 0.4 // 화면 정중앙보다 약간 위쪽 (눈높이)
 
     // Nose Tip 랜드마크 인덱스 (MediaPipe Face Mesh에서 코 끝)
     // MediaPipe Face Mesh: 인덱스 1 = 코 끝 (Nose Tip), 인덱스 4 = 코 중간
@@ -677,7 +677,10 @@ export default function ARCamera({ className = '' }: ARCameraProps) {
         <img
           src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1000&auto=format&fit=crop"
           alt="Mock face for development"
-          className="absolute inset-0 w-full h-full object-cover bg-gray-900"
+          className="absolute inset-0 w-full h-full object-contain bg-gray-900 scale-90"
+          style={{
+            objectPosition: 'center 40%', // 얼굴이 가이드라인 위치에 맞도록 조정
+          }}
         />
       ) : (
         <Webcam
@@ -701,84 +704,85 @@ export default function ARCamera({ className = '' }: ARCameraProps) {
         className="absolute inset-0 w-full h-full pointer-events-none z-10"
       />
 
-      {/* 얼굴 가이드라인 오버레이 (Face ID 스타일 - 확대된 가이드) */}
+      {/* 스캐너 마스크 오버레이 (Dark Overlay with Elliptical Cutout) */}
       {(isCameraReady || isMockMode) && scanStatus !== 'completed' && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-15">
-          {/* 타원형 가이드라인 (화면 너비의 85%, 높이의 65%) - 확대됨 */}
-          <div className="relative w-[85%] h-[65%]">
-            <svg
-              width="100%"
-              height="100%"
-              viewBox="0 0 280 260"
-              className="relative"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              {/* 외곽 타원형 가이드라인 */}
-              <ellipse
-                cx="140"
-                cy="130"
-                rx="119"
-                ry="117"
-                fill="none"
-                stroke={faceAlignment === 'aligned' || isMockMode ? '#00FFC2' : '#FFFFFF'}
-                strokeWidth={faceAlignment === 'aligned' || isMockMode ? '4' : '2'}
-                strokeDasharray={faceAlignment === 'aligned' || isMockMode ? '0' : '8 8'}
-                opacity={faceAlignment === 'aligned' || isMockMode ? 1 : 0.6}
-                className="transition-all duration-300"
-                style={{
-                  filter: faceAlignment === 'aligned' || isMockMode 
-                    ? 'drop-shadow(0 0 12px rgba(0, 255, 194, 0.8)) drop-shadow(0 0 24px rgba(0, 255, 194, 0.4))'
-                    : 'none',
-                }}
-              />
-              {/* 내부 가이드 (더 작은 타원) */}
-              <ellipse
-                cx="140"
-                cy="130"
-                rx="102"
-                ry="100"
-                fill="none"
-                stroke={faceAlignment === 'aligned' || isMockMode ? '#00FFC2' : '#FFFFFF'}
-                strokeWidth={faceAlignment === 'aligned' || isMockMode ? '2' : '1'}
-                strokeDasharray={faceAlignment === 'aligned' || isMockMode ? '0' : '4 4'}
-                opacity={faceAlignment === 'aligned' || isMockMode ? 0.6 : 0.3}
-                className="transition-all duration-300"
-              />
-            </svg>
-            
-            {/* 가이드라인 중앙 텍스트 */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center mt-8">
-              <p 
-                className={`text-base font-semibold transition-colors duration-300 ${
+        <>
+          {/* SVG 마스크를 사용한 어두운 오버레이 (타원형 구멍 뚫기) */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-15" style={{ height: '100%' }}>
+            <defs>
+              <mask id="scanner-mask">
+                {/* 전체 화면을 흰색으로 (마스크에서 흰색 = 불투명, 어두운 오버레이가 보임) */}
+                <rect width="100%" height="100%" fill="white" />
+                {/* 타원형 영역을 검은색으로 (마스크에서 검은색 = 투명, 원본이 보임) */}
+                <ellipse cx="50%" cy="40%" rx="35%" ry="27.5%" fill="black" />
+              </mask>
+            </defs>
+            {/* 어두운 오버레이 (마스크 적용) */}
+            <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.6)" mask="url(#scanner-mask)" />
+          </svg>
+          
+          {/* 가이드라인 컨테이너 */}
+          <div className="absolute inset-0 flex items-start justify-center pointer-events-none z-16 pt-[15%]">
+            {/* 세로로 긴 타원형 가이드라인 (화면 너비의 70%, 높이의 55%) */}
+            <div className="relative w-[70%] aspect-[3/4]">
+              {/* 외곽 타원형 가이드라인 테두리 */}
+              <div 
+                className={`absolute inset-0 rounded-[50%] transition-all duration-300 ${
                   faceAlignment === 'aligned' || isMockMode 
-                    ? 'text-[#00FFC2]' 
-                    : 'text-white'
+                    ? 'border-[3px] border-[#00FFC2] shadow-[0_0_20px_rgba(0,255,194,0.8),0_0_40px_rgba(0,255,194,0.4)]' 
+                    : 'border-2 border-dashed border-[#00FFC2]'
                 }`}
                 style={{
-                  textShadow: faceAlignment === 'aligned' || isMockMode
-                    ? '0 0 8px rgba(0, 255, 194, 0.8)'
-                    : 'none',
+                  opacity: faceAlignment === 'aligned' || isMockMode ? 1 : 0.8,
                 }}
-              >
-                {faceAlignment === 'aligned' || isMockMode
-                  ? '완벽해요! 움직이지 마세요'
-                  : isFaceDetected
-                  ? '얼굴을 화면에 크게 맞춰주세요'
-                  : '얼굴을 화면에 크게 맞춰주세요'}
-              </p>
-              {faceAlignment !== 'aligned' && !isMockMode && isFaceDetected && (
-                <p className="text-xs text-gray-400 mt-2">
-                  더 가까이 오세요
+              />
+              
+              {/* 내부 가이드 (더 작은 타원) */}
+              <div 
+                className={`absolute inset-[8%] rounded-[50%] border transition-all duration-300 ${
+                  faceAlignment === 'aligned' || isMockMode 
+                    ? 'border-[1.5px] border-[#00FFC2]' 
+                    : 'border border-dashed border-[#00FFC2]'
+                }`}
+                style={{
+                  opacity: faceAlignment === 'aligned' || isMockMode ? 0.6 : 0.4,
+                }}
+              />
+              
+              {/* 가이드라인 바깥쪽 하단 텍스트 */}
+              <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-center w-full">
+                <p 
+                  className={`text-lg font-semibold transition-colors duration-300 ${
+                    faceAlignment === 'aligned' || isMockMode 
+                      ? 'text-[#00FFC2]' 
+                      : 'text-white'
+                  }`}
+                  style={{
+                    textShadow: faceAlignment === 'aligned' || isMockMode
+                      ? '0 0 8px rgba(0, 255, 194, 0.8)'
+                      : 'none',
+                  }}
+                >
+                  {faceAlignment === 'aligned' || isMockMode
+                    ? '완벽해요! 움직이지 마세요'
+                    : isFaceDetected
+                    ? '얼굴을 화면에 크게 맞춰주세요'
+                    : '얼굴을 화면에 크게 맞춰주세요'}
                 </p>
-              )}
-              {!isFaceDetected && !isMockMode && (
-                <p className="text-xs text-gray-400 mt-2">
-                  얼굴을 찾을 수 없습니다
-                </p>
-              )}
+                {faceAlignment !== 'aligned' && !isMockMode && isFaceDetected && (
+                  <p className="text-sm text-gray-400 mt-2">
+                    더 가까이 오세요
+                  </p>
+                )}
+                {!isFaceDetected && !isMockMode && (
+                  <p className="text-sm text-gray-400 mt-2">
+                    얼굴을 찾을 수 없습니다
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* 스캔 상태 표시 */}
