@@ -9,10 +9,11 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1분
-            gcTime: 5 * 60 * 1000, // 5분 (이전 cacheTime)
-            retry: 2,
+            staleTime: 5 * 60 * 1000, // 5분 (기본값 증가)
+            gcTime: 10 * 60 * 1000, // 10분
+            retry: 1, // 재시도 횟수 감소 (빠른 실패)
             refetchOnWindowFocus: false,
+            refetchOnMount: false, // 마운트 시 refetch 방지 (캐시 우선)
           },
           mutations: {
             retry: 1,

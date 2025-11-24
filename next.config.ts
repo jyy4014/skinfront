@@ -14,7 +14,24 @@ const nextConfig: NextConfig = {
     'face-api.js',
     '@mediapipe/face_detection',
     '@mediapipe/face_mesh',
+    '@mediapipe/camera_utils',
+    'react-webcam',
   ],
+  // 이미지 최적화 설정
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.in',
+      },
+    ],
+    // blob URL과 data URL은 unoptimized로 처리 (이미 최적화됨)
+    unoptimized: false,
+  },
 };
 
 export default nextConfig;
