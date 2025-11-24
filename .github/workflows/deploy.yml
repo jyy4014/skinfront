@@ -40,8 +40,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    # Note: Vercel secrets가 없으면 이 단계는 자동으로 실패합니다
+    # Note: Vercel secrets가 없으면 배포를 건너뜁니다
     # Secrets는 Settings > Secrets and variables > Actions에서 설정하세요
+    if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
     
     steps:
       - name: Checkout code
