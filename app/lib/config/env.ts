@@ -1,7 +1,5 @@
 /**
  * 환경 변수 타입 안전 접근
- * 
- * 모든 환경 변수는 이 모듈을 통해 접근하여 타입 안전성과 일관성을 보장합니다.
  */
 
 /**
@@ -24,7 +22,6 @@ export interface EnvConfig {
 
 /**
  * 환경 변수 검증
- * @throws {Error} 필수 환경 변수가 없을 경우
  */
 function validateEnv(): void {
   const missing: string[] = []
@@ -45,8 +42,6 @@ function validateEnv(): void {
 
 /**
  * 환경 변수 설정 가져오기
- * @returns 타입 안전한 환경 변수 설정
- * @throws {Error} 필수 환경 변수가 없을 경우
  */
 export function getEnvConfig(): EnvConfig {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -69,13 +64,11 @@ export function getEnvConfig(): EnvConfig {
 
 /**
  * 환경 변수 설정 (싱글톤)
- * 앱 시작 시 한 번만 초기화됩니다.
  */
 let envConfig: EnvConfig | null = null
 
 /**
  * 환경 변수 설정 가져오기 (캐시된 버전)
- * @returns 타입 안전한 환경 변수 설정
  */
 export function getEnv(): EnvConfig {
   if (!envConfig) {
@@ -96,13 +89,5 @@ export function getSupabaseUrl(): string {
  */
 export function getSupabaseAnonKey(): string {
   return getEnv().supabase.anonKey
-}
-
-/**
- * 환경 변수 설정 초기화 (테스트용)
- * @internal
- */
-export function resetEnv(): void {
-  envConfig = null
 }
 
