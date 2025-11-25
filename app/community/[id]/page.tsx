@@ -181,7 +181,7 @@ export default function CommunityDetailPage() {
         <h2 className="text-2xl font-bold text-white mb-4">{post.title}</h2>
 
         {/* Before/After 슬라이더 또는 일반 이미지 */}
-        {hasBeforeAfter ? (
+        {hasBeforeAfter && post.images ? (
           <div className="mb-6">
             <BeforeAfterSlider beforeImage={post.images[0]} afterImage={post.images[1]} />
           </div>
