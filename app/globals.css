@@ -125,3 +125,265 @@ select:focus option:checked {
   color: #111827 !important;
   background-color: #f3f4f6 !important;
 }
+
+/* Leaflet 지도 스타일 (다크 테마) */
+.leaflet-container {
+  background: #121212 !important;
+  font-family: inherit;
+}
+
+/* 지도 타일 필터 (색상 반전으로 다크 모드 변환) - 강력한 선택자 사용 */
+.map-tiles,
+.leaflet-tile-container img,
+.leaflet-tile-pane img {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
+}
+
+/* 마커는 필터 영향 없도록 (명시적으로 보호) */
+.custom-price-marker,
+.custom-price-marker *,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  filter: none !important;
+}
+
+/* 커스텀 클러스터 아이콘 스타일 */
+.custom-cluster-icon {
+  background-color: #121212 !important;
+  border: 2px solid #00FFC2 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 10px 15px rgba(0, 0, 0, 0.2) !important;
+  color: #00FFC2 !important;
+  font-weight: bold !important;
+}
+
+.custom-cluster-icon-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 8px !important;
+}
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ============================================
+   🚀 GPU 최적화 애니메이션 (Performance Optimized)
+   - will-change로 GPU 레이어 분리
+   - transform만 사용 (box-shadow 애니메이션 X)
+   - 60fps 유지를 위한 최적화
+   ============================================ */
+
+/* GPU 가속 강제 레이어 */
+.gpu-accelerated {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* 스피너 (회전) - GPU 최적화 */
+@keyframes gpu-spin {
+  from { transform: translateZ(0) rotate(0deg); }
+  to { transform: translateZ(0) rotate(360deg); }
+}
+
+.animate-gpu-spin {
+  animation: gpu-spin 1s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.animate-gpu-spin-slow {
+  animation: gpu-spin 2s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.animate-gpu-spin-reverse {
+  animation: gpu-spin 1.5s linear infinite reverse;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* 펄스 (크기 + 투명도) - GPU 최적화 */
+@keyframes gpu-pulse {
+  0%, 100% { 
+    transform: translateZ(0) scale(1); 
+    opacity: 1; 
+  }
+  50% { 
+    transform: translateZ(0) scale(1.05); 
+    opacity: 0.8; 
+  }
+}
+
+.animate-gpu-pulse {
+  animation: gpu-pulse 1.5s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* 네온 글로우 펄스 - opacity만 조절 (box-shadow X) */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 1s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* 레이저 스캔 바 - translateY 사용 */
+@keyframes laser-scan {
+  from { transform: translateZ(0) translateY(-10%); }
+  to { transform: translateZ(0) translateY(110%); }
+}
+
+.animate-laser-scan {
+  animation: laser-scan 3.5s linear forwards;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* 원형 파동 효과 - transform + opacity만 */
+@keyframes ripple-wave {
+  from { 
+    transform: translateZ(0) scale(0); 
+    opacity: 0.8; 
+  }
+  to { 
+    transform: translateZ(0) scale(3); 
+    opacity: 0; 
+  }
+}
+
+.animate-ripple {
+  animation: ripple-wave 1.5s ease-out forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* 로딩 바 (좌우 이동) - translateX 사용 */
+@keyframes loading-slide {
+  0% { 
+    transform: translateZ(0) translateX(-100%); 
+    opacity: 0.5;
+  }
+  50% { 
+    transform: translateZ(0) translateX(0%); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateZ(0) translateX(100%); 
+    opacity: 0.5;
+  }
+}
+
+.animate-loading-slide {
+  animation: loading-slide 1.5s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* 점멸 효과 - opacity만 */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-blink {
+  animation: blink 0.6s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-blink-delay-1 {
+  animation: blink 0.6s ease-in-out infinite 0.2s;
+  will-change: opacity;
+}
+
+.animate-blink-delay-2 {
+  animation: blink 0.6s ease-in-out infinite 0.4s;
+  will-change: opacity;
+}
+
+/* 페이드 인/아웃 */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+  will-change: opacity;
+}
+
+.animate-fade-out {
+  animation: fade-out 0.3s ease-out forwards;
+  will-change: opacity;
+}
+
+/* 스케일 팝 */
+@keyframes scale-pop {
+  0% { transform: translateZ(0) scale(0.8); opacity: 0; }
+  50% { transform: translateZ(0) scale(1.1); }
+  100% { transform: translateZ(0) scale(1); opacity: 1; }
+}
+
+.animate-scale-pop {
+  animation: scale-pop 0.3s ease-out forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* 네온 글로우 정적 효과 (애니메이션 시 사용할 배경 레이어) */
+.neon-glow-mint {
+  box-shadow: 0 0 20px #00FFC2, 0 0 40px rgba(0, 255, 194, 0.5);
+}
+
+.neon-glow-mint-intense {
+  box-shadow: 0 0 40px #00FFC2, 0 0 80px #00FFC2, 0 0 120px rgba(0, 255, 194, 0.6);
+}
+
+/* SVG 게이지 애니메이션 - CSS transition 활용 */
+.gauge-transition {
+  transition: stroke-dashoffset 0.1s linear;
+  will-change: stroke-dashoffset;
+}
+
+/* 카운트다운 숫자 팝 */
+@keyframes countdown-pop {
+  0% { transform: translateZ(0) scale(0.5); opacity: 0; }
+  50% { transform: translateZ(0) scale(1.2); }
+  100% { transform: translateZ(0) scale(1); opacity: 1; }
+}
+
+.animate-countdown-pop {
+  animation: countdown-pop 0.5s ease-out forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}

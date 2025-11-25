@@ -5,7 +5,12 @@ import { ArrowLeft, AlertCircle, CheckCircle, Info, Zap, Bandage, DollarSign, Sp
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { analyzeSkin, getRecommendedTreatment, type SkinAnalysisResult, type TreatmentRecommendation } from '../utils/simpleAnalysis'
+import { analyzeSkinCondition, type RealSkinAnalysisResult } from '../utils/realSkinAnalysis'
+import { getRecommendedTreatment } from '../utils/simpleAnalysis'
+import type { TreatmentRecommendation } from '../utils/simpleAnalysis'
+import { saveSkinRecord } from '../utils/storage'
+import AnalysisLoading from '../components/AnalysisLoading'
+import RewardAdModal from '../components/RewardAdModal'
 
 // 원형 차트 컴포넌트
 function ScoreChart({ score, size = 160 }: { score: number; size?: number }) {
@@ -70,74 +75,342 @@ interface ProblemItem {
 
 export default function ReportPage() {
   const router = useRouter()
-  const [analysisResult, setAnalysisResult] = useState<SkinAnalysisResult | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<RealSkinAnalysisResult | null>(null)
   const [recommendedTreatment, setRecommendedTreatment] = useState<TreatmentRecommendation | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(true)
+  const [showRewardAd, setShowRewardAd] = useState(false)
+  const [shouldShowAd, setShouldShowAd] = useState(false)
 
-  // 분석 실행 (컴포넌트 마운트 시)
+  // 분석 실행 함수 (분리)
+  const runAnalysis = async () => {
+      try {
+        // sessionStorage에서 이미지와 랜드마크 가져오기
+        const imageData = sessionStorage.getItem('skinAnalysisImage')
+        const landmarksStr = sessionStorage.getItem('skinAnalysisLandmarks')
+        
+        if (imageData && landmarksStr) {
+          const landmarks = JSON.parse(landmarksStr)
+          
+          console.log('📥 [Report Page] Data loaded:', {
+            hasImage: !!imageData,
+            imageLength: imageData?.length || 0,
+            hasLandmarks: !!landmarks,
+            landmarksLength: landmarks?.length || 0,
+            landmarksType: Array.isArray(landmarks) ? 'array' : typeof landmarks,
+          })
+          
+          // 실제 분석 실행
+          const result = await analyzeSkinCondition(imageData, landmarks)
+          
+          console.log('✅ [Report Page] Analysis result:', result)
+          setAnalysisResult(result)
+          
+          // 분석 결과를 localStorage에 저장 (utils/storage.ts 사용)
+          const recordToSave = {
+            date: new Date().toISOString(),
+            totalScore: result.totalScore,
+            primaryConcern: result.primaryConcern,
+            details: result.details,
+          }
+          saveSkinRecord(recordToSave)
+          
+          // 추천 시술 결정 (primaryConcern 기반)
+          const mockAnalysisResult = {
+            mainIssue: (result.primaryConcern === '기미' ? 'pigmentation' 
+              : result.primaryConcern === '모공' ? 'pores'
+              : result.primaryConcern === '주름' ? 'wrinkles'
+              : 'acne') as 'pigmentation' | 'pores' | 'wrinkles' | 'acne',
+            totalScore: result.totalScore,
+            skinAge: Math.floor(20 + (100 - result.totalScore) / 4),
+            issues: {
+              pigmentation: result.details.pigmentation.score,
+              pores: result.details.pores.score,
+              wrinkles: result.details.wrinkles.score,
+              acne: result.details.acne.score,
+            }
+          }
+          setRecommendedTreatment(getRecommendedTreatment(mockAnalysisResult))
+        } else {
+          // 데이터가 없으면 기본값 사용 (fallback)
+          const defaultResult: RealSkinAnalysisResult = {
+            totalScore: 50,
+            details: {
+              pigmentation: { score: 50, grade: '주의' },
+              pores: { score: 50, grade: '주의' },
+              wrinkles: { score: 50, grade: '주의' },
+              acne: { score: 50, grade: '주의' },
+            },
+            primaryConcern: '기미',
+          }
+          setAnalysisResult(defaultResult)
+          const mockAnalysisResult = {
+            mainIssue: 'pigmentation' as const,
+            totalScore: 50,
+            skinAge: 30,
+            issues: {
+              pigmentation: 50,
+              pores: 50,
+              wrinkles: 50,
+              acne: 50,
+            }
+          }
+          setRecommendedTreatment(getRecommendedTreatment(mockAnalysisResult))
+        }
+      } catch (error) {
+        console.error('Analysis error:', error)
+        // 에러 발생 시 기본값 사용
+        const defaultResult: RealSkinAnalysisResult = {
+          totalScore: 50,
+          details: {
+            pigmentation: { score: 50, grade: '주의' },
+            pores: { score: 50, grade: '주의' },
+            wrinkles: { score: 50, grade: '주의' },
+            acne: { score: 50, grade: '주의' },
+          },
+          primaryConcern: '기미',
+        }
+        setAnalysisResult(defaultResult)
+        const mockAnalysisResult = {
+          mainIssue: 'pigmentation' as const,
+          totalScore: 50,
+          skinAge: 30,
+          issues: {
+            pigmentation: 50,
+            pores: 50,
+            wrinkles: 50,
+            acne: 50,
+          }
+        }
+        setRecommendedTreatment(getRecommendedTreatment(mockAnalysisResult))
+      } finally {
+        setIsAnalyzing(false)
+      }
+    }
+
+  // 광고 시청 로직 (Gatekeeper) - 프리미엄 모델
   useEffect(() => {
-    // 실제로는 이미지 데이터를 받아서 분석하지만, 지금은 더미 데이터로
-    const result = analyzeSkin()
-    setAnalysisResult(result)
-    setRecommendedTreatment(getRecommendedTreatment(result))
-    setIsAnalyzing(false)
-  }, [])
+    // 프리미엄 유저 체크
+    const userTier = localStorage.getItem('user_tier')
+    const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
 
-  // 분석 결과가 없으면 로딩 표시
-  if (isAnalyzing || !analysisResult || !recommendedTreatment) {
+    // 프리미엄 유저는 횟수 체크 및 광고 로직을 아예 건너뜀 (Pass)
+    if (userTier === 'premium') {
+      setIsAnalyzing(true)
+      runAnalysis()
+      return
+    }
+
+    // 일반 유저는 기존대로 3회마다 광고 체크
+    if (analysisCount > 0 && analysisCount % 3 === 0) {
+      // 광고 모달 표시 (분석 일시 정지)
+      setShouldShowAd(true)
+      setShowRewardAd(true)
+      setIsAnalyzing(false)
+    } else {
+      // 광고 안 보는 순서 -> 바로 분석 시작
+      setIsAnalyzing(true)
+      runAnalysis()
+      // count를 1 올림
+      localStorage.setItem('analysis_count', String(analysisCount + 1))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 광고 모달 닫기 핸들러
+  const handleAdClose = () => {
+    setShowRewardAd(false)
+    setShouldShowAd(false)
+    // 광고를 다 보고 닫으면 -> count를 1 올리고 분석 시작
+    const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
+    localStorage.setItem('analysis_count', String(analysisCount + 1))
+    setIsAnalyzing(true)
+    runAnalysis()
+  }
+
+  // 광고 모달이 표시되어야 하는 경우
+  if (shouldShowAd && showRewardAd) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#00FFC2] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">분석 중...</p>
-        </div>
-      </div>
+      <>
+        <AnalysisLoading isVisible={false} />
+        <RewardAdModal isOpen={showRewardAd} onClose={handleAdClose} />
+      </>
     )
   }
 
-  const { totalScore, skinAge, mainIssue, issues } = analysisResult
+  // 분석 결과가 없으면 로딩 표시
+  if (isAnalyzing || !analysisResult || !recommendedTreatment) {
+    // 다음 광고까지 남은 횟수 계산
+    const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
+    const nextAdAt = Math.ceil((analysisCount + 1) / 3) * 3
+    const remainingCount = Math.max(0, nextAdAt - analysisCount - 1)
+    
+    return <AnalysisLoading isVisible={true} remainingCount={remainingCount} />
+  }
 
-  // 문제 항목 데이터 (분석 결과 기반)
+  const { totalScore, details, primaryConcern } = analysisResult
+  const skinAge = Math.floor(20 + (100 - totalScore) / 4) // 피부 나이 계산
+
+  // 등급을 status로 변환
+  const gradeToStatus = (grade: '양호' | '주의' | '위험'): 'good' | 'warning' | 'danger' => {
+    if (grade === '양호') return 'good'
+    if (grade === '주의') return 'warning'
+    return 'danger'
+  }
+
+  // 문제 항목 데이터 (실제 분석 결과 기반)
   const problems: ProblemItem[] = [
     { 
       id: 'pigmentation', 
       name: '기미', 
-      score: issues.pigmentation, 
-      status: issues.pigmentation > 60 ? 'danger' : issues.pigmentation > 40 ? 'warning' : 'good', 
+      score: details.pigmentation.score, 
+      status: gradeToStatus(details.pigmentation.grade), 
       position: { x: 65, y: 45 } // 오른쪽 광대뼈 중앙
     },
     { 
       id: 'pores', 
       name: '모공', 
-      score: issues.pores, 
-      status: issues.pores > 60 ? 'danger' : issues.pores > 40 ? 'warning' : 'good', 
+      score: details.pores.score, 
+      status: gradeToStatus(details.pores.grade), 
       position: { x: 45, y: 50 } // 코 바로 옆 나비존
     },
     { 
       id: 'wrinkles', 
       name: '주름', 
-      score: issues.wrinkles, 
-      status: issues.wrinkles > 60 ? 'danger' : issues.wrinkles > 40 ? 'warning' : 'good', 
+      score: details.wrinkles.score, 
+      status: gradeToStatus(details.wrinkles.grade), 
       position: { x: 25, y: 35 } // 왼쪽 눈가 옆
     },
     { 
       id: 'acne', 
       name: '여드름', 
-      score: issues.acne, 
-      status: issues.acne > 60 ? 'danger' : issues.acne > 40 ? 'warning' : 'good', 
+      score: details.acne.score, 
+      status: gradeToStatus(details.acne.grade), 
       position: { x: 50, y: 25 } // 이마 중앙
     },
   ]
 
   // 새로고침 핸들러
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsAnalyzing(true)
-    setTimeout(() => {
-      const result = analyzeSkin()
-      setAnalysisResult(result)
-      setRecommendedTreatment(getRecommendedTreatment(result))
+    try {
+      // sessionStorage에서 다시 가져와서 재분석
+      const imageData = sessionStorage.getItem('skinAnalysisImage')
+      const landmarksStr = sessionStorage.getItem('skinAnalysisLandmarks')
+      
+      if (imageData && landmarksStr) {
+        const landmarks = JSON.parse(landmarksStr)
+        const result = await analyzeSkinCondition(imageData, landmarks)
+        setAnalysisResult(result)
+        
+        // 분석 결과를 localStorage에 저장 (히스토리용)
+        try {
+          // 데이터 유효성 검사
+          if (
+            !result ||
+            typeof result.totalScore !== 'number' ||
+            result.totalScore < 0 ||
+            result.totalScore > 100 ||
+            !result.primaryConcern ||
+            !result.details
+          ) {
+            console.warn('Invalid analysis result, skipping save:', result)
+            return
+          }
+
+          const historyRecord = {
+            id: `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // 고유 ID 보장
+            date: new Date().toISOString(),
+            totalScore: Math.max(0, Math.min(100, result.totalScore)), // 0-100 범위로 제한
+            primaryConcern: result.primaryConcern,
+            details: {
+              pigmentation: {
+                score: Math.max(0, Math.min(100, result.details.pigmentation?.score || 50)),
+                grade: result.details.pigmentation?.grade || '주의',
+              },
+              pores: {
+                score: Math.max(0, Math.min(100, result.details.pores?.score || 50)),
+                grade: result.details.pores?.grade || '주의',
+              },
+              wrinkles: {
+                score: Math.max(0, Math.min(100, result.details.wrinkles?.score || 50)),
+                grade: result.details.wrinkles?.grade || '주의',
+              },
+              acne: {
+                score: Math.max(0, Math.min(100, result.details.acne?.score || 50)),
+                grade: result.details.acne?.grade || '주의',
+              },
+            },
+          }
+          
+          // 기존 기록 불러오기
+          let existingRecords: string | null = null
+          try {
+            existingRecords = localStorage.getItem('skinAnalysisHistory')
+          } catch (error) {
+            console.error('Failed to access localStorage:', error)
+            return
+          }
+
+          let records: typeof historyRecord[] = []
+          if (existingRecords) {
+            try {
+              const parsed = JSON.parse(existingRecords)
+              if (Array.isArray(parsed)) {
+                records = parsed
+              } else {
+                console.warn('Invalid records format in localStorage, resetting')
+                records = []
+              }
+            } catch (error) {
+              console.error('Failed to parse existing records:', error)
+              records = []
+            }
+          }
+          
+          // 새 기록 추가 (최신순으로 정렬)
+          records.unshift(historyRecord)
+          
+          // 최대 50개까지만 저장 (성능 고려)
+          const trimmedRecords = records.slice(0, 50)
+          
+          try {
+            localStorage.setItem('skinAnalysisHistory', JSON.stringify(trimmedRecords))
+            console.log('💾 [Report Page] Analysis record saved to localStorage (refresh)')
+          } catch (error) {
+            // 저장 실패 시 (용량 초과 등) 오래된 기록 삭제 후 재시도
+            console.warn('Failed to save, trying to clear old records:', error)
+            try {
+              const reducedRecords = trimmedRecords.slice(0, 25) // 절반으로 줄임
+              localStorage.setItem('skinAnalysisHistory', JSON.stringify(reducedRecords))
+              console.log('💾 [Report Page] Analysis record saved with reduced history (refresh)')
+            } catch (retryError) {
+              console.error('Failed to save analysis record after retry:', retryError)
+            }
+          }
+        } catch (error) {
+          console.error('Unexpected error saving analysis record:', error)
+        }
+        
+        const mockAnalysisResult = {
+          mainIssue: (result.primaryConcern === '기미' ? 'pigmentation' 
+            : result.primaryConcern === '모공' ? 'pores'
+            : result.primaryConcern === '주름' ? 'wrinkles'
+            : 'acne') as 'pigmentation' | 'pores' | 'wrinkles' | 'acne',
+          totalScore: result.totalScore,
+          skinAge: Math.floor(20 + (100 - result.totalScore) / 4),
+          issues: {
+            pigmentation: result.details.pigmentation.score,
+            pores: result.details.pores.score,
+            wrinkles: result.details.wrinkles.score,
+            acne: result.details.acne.score,
+          }
+        }
+        setRecommendedTreatment(getRecommendedTreatment(mockAnalysisResult))
+      }
+    } catch (error) {
+      console.error('Refresh analysis error:', error)
+    } finally {
       setIsAnalyzing(false)
-    }, 500) // 짧은 로딩 효과
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -248,7 +521,7 @@ export default function ReportPage() {
             <div className="relative mx-auto flex items-center justify-center" style={{ width: 280, height: 320 }}>
               {/* 얼굴 윤곽선 SVG 가이드 (컨테이너의 90% 높이, 높은 대비) */}
               <svg 
-                width="auto" 
+                width="100%" 
                 height="90%" 
                 className="absolute" 
                 viewBox="0 0 280 320"
@@ -687,6 +960,14 @@ export default function ReportPage() {
           내 주변 최저가 병원 찾기 (3곳)
         </Link>
       </motion.div>
+
+      {/* 보상형 광고 모달 (분석 완료 후 표시 - 기존 로직) */}
+      {!shouldShowAd && (
+        <RewardAdModal 
+          isOpen={showRewardAd} 
+          onClose={() => setShowRewardAd(false)} 
+        />
+      )}
     </div>
   )
 }
