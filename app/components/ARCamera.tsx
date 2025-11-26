@@ -63,6 +63,19 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   const executeCinematicSequenceRef = useRef<(() => void) | null>(null) // 시네마틱 시퀀스 함수 ref
   const isCleanedUpRef = useRef(false) // 🧹 메모리 cleanup 상태 추적
 
+  // 🐛 디버그 오버레이 상태
+  const [debugInfo, setDebugInfo] = useState({
+    faceDetected: false,
+    faceWidthRatio: 0,
+    faceHeightRatio: 0,
+    centerOffsetX: 0,
+    centerOffsetY: 0,
+    brightness: 0,
+    status: 'Waiting' as 'Waiting' | 'Lock-on' | 'Capturing',
+    poseOk: false,
+  })
+  const [showDebugOverlay, setShowDebugOverlay] = useState(true) // 디버그 오버레이 표시 여부
+
   // 🧹 메모리 누수 방지: 컴포넌트 언마운트 시 전체 리소스 정리
   useEffect(() => {
     isCleanedUpRef.current = false
@@ -218,12 +231,15 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             const screenArea = canvas.width * canvas.height
             const faceAreaRatio = faceArea / screenArea
             
-            // 🎯 조건 완화: 얼굴이 화면의 10% 이상 차지해야 유효 (기존 20% → 10%)
-            const faceSizeValid = faceAreaRatio >= 0.1
+            // 🎯 조건 완화: 얼굴이 화면의 5% 이상 차지해야 유효 (기존 20% → 5%)
+            const faceSizeValid = faceAreaRatio >= 0.05
             faceDetected = faceSizeValid
             
-            // 디버그 로그 (개발용)
-            // console.log(`👤 Face detected: ${faceAreaRatio.toFixed(2)} (${faceSizeValid ? 'OK' : 'TOO SMALL'})`)
+            // 🐛 디버그 정보 업데이트 (얼굴 감지 상태)
+            setDebugInfo(prev => ({
+              ...prev,
+              faceDetected: faceDetected,
+            }))
 
             if (faceDetected) {
               // Mock 모드일 경우 항상 정렬된 것으로 간주, 실제 모드일 경우 검사
@@ -435,8 +451,15 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
 
       const avgLuminance = totalLuminance / pixelCount
 
-      if (avgLuminance < 80) {
-        return { ok: false, message: '🚫 너무 어두워요! 밝은 곳으로 이동해주세요.' }
+      // 🐛 디버그 정보 업데이트 (밝기)
+      setDebugInfo(prev => ({
+        ...prev,
+        brightness: Math.round(avgLuminance),
+      }))
+
+      // 🔧 완화: 80 -> 50 (더 어두워도 OK)
+      if (avgLuminance < 50) {
+        return { ok: false, message: `🚫 어두워요! (밝기: ${Math.round(avgLuminance)}, 목표: 50+)` }
       }
 
       return { ok: true, message: '' }
@@ -529,6 +552,13 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
 
     // 2단계: 얼굴 각도(Pose) 검사 (우선순위 2위)
     const poseCheck = checkFacePose(landmarks)
+    
+    // 🐛 디버그 정보 업데이트 (포즈)
+    setDebugInfo(prev => ({
+      ...prev,
+      poseOk: poseCheck.ok,
+    }))
+    
     if (!poseCheck.ok) {
       setPoseStatus('not-frontal')
       setGuideMessage(poseCheck.message)
@@ -552,57 +582,73 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     // 위치 판별 (Centering) - 코끝이 화면 중앙에서 ±10% 오차 범위를 벗어나는지 검사
     const centerXDiff = Math.abs(noseTipX - guideCenterX)
     const centerYDiff = Math.abs(noseTipY - guideCenterY)
-    const maxCenterDiffX = screenWidth * 0.1 // 10% 허용 오차
-    const maxCenterDiffY = screenHeight * 0.1 // 10% 허용 오차
+    // 🔧 완화: 10% -> 20% 허용 오차
+    const maxCenterDiffX = screenWidth * 0.2 // 20% 허용 오차
+    const maxCenterDiffY = screenHeight * 0.2 // 20% 허용 오차
 
     const isCentered = centerXDiff <= maxCenterDiffX && centerYDiff <= maxCenterDiffY
+    
+    // 정규화된 오프셋 (디버그용)
+    const normalizedOffsetX = (noseTipX - guideCenterX) / screenWidth
+    const normalizedOffsetY = (noseTipY - guideCenterY) / screenHeight
 
     // 거리 판별 (Distance) - 얼굴 너비가 가이드라인 너비의 비율
     const faceWidthRatio = faceBounds.width / guideWidth
     const faceHeightRatio = faceBounds.height / guideHeight
-    const minFillRatio = 0.5 // 50% 미만이면 너무 멀음
-    const maxFillRatio = 0.9 // 90% 초과면 너무 가까움
-    const perfectMinRatio = 0.6 // 완벽한 상태의 최소 비율
-    const perfectMaxRatio = 0.85 // 완벽한 상태의 최대 비율
+    // 🔧 완화: 기존보다 훨씬 넓은 범위 허용
+    const minFillRatio = 0.35 // 35% 미만이면 너무 멀음 (기존 50%)
+    const maxFillRatio = 0.95 // 95% 초과면 너무 가까움 (기존 90%)
+    const perfectMinRatio = 0.4 // 40% 이상이면 OK (기존 60%)
+    const perfectMaxRatio = 0.92 // 92% 이하면 OK (기존 85%)
 
-    // 위치가 벗어난 경우
+    // 🐛 디버그 정보 업데이트
+    setDebugInfo(prev => ({
+      ...prev,
+      faceWidthRatio: Math.round(faceWidthRatio * 100),
+      faceHeightRatio: Math.round(faceHeightRatio * 100),
+      centerOffsetX: Math.round(normalizedOffsetX * 100) / 100,
+      centerOffsetY: Math.round(normalizedOffsetY * 100) / 100,
+    }))
+
+    // 위치가 벗어난 경우 - 구체적인 방향 안내
     if (!isCentered) {
-      setGuideMessage('🎯 얼굴을 중앙으로 옮겨주세요')
+      const direction = normalizedOffsetX > 0.05 ? '왼쪽으로' : normalizedOffsetX < -0.05 ? '오른쪽으로' : 
+                        normalizedOffsetY > 0.05 ? '위로' : '아래로'
+      setGuideMessage(`🎯 ${direction} 조금만! (오차: ${Math.round(Math.max(Math.abs(normalizedOffsetX), Math.abs(normalizedOffsetY)) * 100)}%)`)
       setGuideColor('yellow')
-      return { aligned: false, message: '🎯 얼굴을 중앙으로 옮겨주세요', color: 'yellow' }
+      return { aligned: false, message: `🎯 ${direction} 조금만!`, color: 'yellow' }
     }
 
-    // 거리가 너무 먼 경우
+    // 거리가 너무 먼 경우 - 현재 비율 표시
     if (faceWidthRatio < minFillRatio) {
-      setGuideMessage('🔍 조금 더 가까이 오세요')
+      setGuideMessage(`🔍 더 가까이! (현재: ${Math.round(faceWidthRatio * 100)}%, 목표: ${Math.round(minFillRatio * 100)}%+)`)
       setGuideColor('white')
-      return { aligned: false, message: '🔍 조금 더 가까이 오세요', color: 'white' }
+      return { aligned: false, message: `🔍 더 가까이! (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
     }
 
     // 거리가 너무 가까운 경우
     if (faceWidthRatio > maxFillRatio) {
-      setGuideMessage('✋ 조금만 뒤로 물러나세요')
+      setGuideMessage(`✋ 조금 뒤로! (현재: ${Math.round(faceWidthRatio * 100)}%, 최대: ${Math.round(maxFillRatio * 100)}%)`)
       setGuideColor('white')
-      return { aligned: false, message: '✋ 조금만 뒤로 물러나세요', color: 'white' }
+      return { aligned: false, message: `✋ 조금 뒤로! (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
     }
 
-    // 완벽한 상태 - 모든 조건 통과 (조명, 각도, 거리 모두 OK)
-    if (faceWidthRatio >= perfectMinRatio && faceWidthRatio <= perfectMaxRatio && 
-        faceHeightRatio >= perfectMinRatio && faceHeightRatio <= perfectMaxRatio) {
-      setGuideMessage('✨ 완벽해요! 움직이지 마세요')
+    // 🎉 완벽한 상태 - 조건 대폭 완화 (40%~92% 범위면 OK)
+    if (faceWidthRatio >= perfectMinRatio && faceWidthRatio <= perfectMaxRatio) {
+      setGuideMessage(`✨ 좋아요! 유지하세요 (${Math.round(faceWidthRatio * 100)}%)`)
       setGuideColor('mint')
-      return { aligned: true, message: '✨ 완벽해요! 움직이지 마세요', color: 'mint' }
+      return { aligned: true, message: `✨ 좋아요! (${Math.round(faceWidthRatio * 100)}%)`, color: 'mint' }
     }
 
-    // 중간 상태 (50%~60% 또는 85%~90%)
+    // 중간 상태 (35%~40%)
     if (faceWidthRatio < perfectMinRatio) {
-      setGuideMessage('🔍 조금 더 가까이 오세요')
+      setGuideMessage(`🔍 조금만 더 가까이 (${Math.round(faceWidthRatio * 100)}% → ${Math.round(perfectMinRatio * 100)}%)`)
       setGuideColor('white')
-      return { aligned: false, message: '🔍 조금 더 가까이 오세요', color: 'white' }
+      return { aligned: false, message: `🔍 조금만 더 (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
     } else {
-      setGuideMessage('✋ 조금만 뒤로 물러나세요')
+      setGuideMessage(`✋ 살짝 뒤로 (${Math.round(faceWidthRatio * 100)}% → ${Math.round(perfectMaxRatio * 100)}%)`)
       setGuideColor('white')
-      return { aligned: false, message: '✋ 조금만 뒤로 물러나세요', color: 'white' }
+      return { aligned: false, message: `✋ 살짝 뒤로 (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
     }
   }
 
@@ -1231,7 +1277,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       return
     }
 
-    const LOCK_ON_DURATION = 2000 // 2초
+    const LOCK_ON_DURATION = 1000 // 🔧 완화: 2초 -> 1초 (빠른 촬영)
     
     // 3단계 검증이 모두 Pass인지 확인하는 함수
     const checkConditions = () => {
@@ -1257,6 +1303,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         if (lockOnStartTimeRef.current === null) {
           lockOnStartTimeRef.current = Date.now()
           console.log('🎯 Lock-on started')
+          // 🐛 디버그 정보 업데이트
+          setDebugInfo(prev => ({ ...prev, status: 'Lock-on' }))
         }
 
         const elapsed = Date.now() - lockOnStartTimeRef.current
@@ -1295,6 +1343,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
           lockOnStartTimeRef.current = null
           setLockOnProgress(0)
           setCountdownText(null)
+          // 🐛 디버그 정보 업데이트
+          setDebugInfo(prev => ({ ...prev, status: 'Waiting' }))
         }
       }
     }, 100) // 100ms마다 체크
@@ -1415,6 +1465,76 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-yellow-500/90 backdrop-blur-sm rounded-full flex items-center gap-2">
           <span className="text-xs">⚠️</span>
           <span className="text-xs font-semibold text-black">Dev Mode: Camera Mockup</span>
+        </div>
+      )}
+
+      {/* 🐛 디버그 오버레이 */}
+      {showDebugOverlay && scanningStage === 'idle' && (
+        <div className="absolute top-4 left-4 z-30 p-3 bg-black/70 backdrop-blur-sm rounded-lg text-xs font-mono text-white space-y-1 min-w-[200px]">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold text-[#00FFC2]">🐛 DEBUG</span>
+            <button 
+              onClick={() => setShowDebugOverlay(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Face:</span>
+            <span className={debugInfo.faceDetected ? 'text-green-400' : 'text-red-400'}>
+              {debugInfo.faceDetected ? '✅ 감지됨' : '❌ 없음'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Width:</span>
+            <span className={debugInfo.faceWidthRatio >= 40 && debugInfo.faceWidthRatio <= 92 ? 'text-green-400' : 'text-yellow-400'}>
+              {debugInfo.faceWidthRatio}% <span className="text-gray-500">(40-92%)</span>
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Height:</span>
+            <span className={debugInfo.faceHeightRatio >= 40 && debugInfo.faceHeightRatio <= 92 ? 'text-green-400' : 'text-yellow-400'}>
+              {debugInfo.faceHeightRatio}%
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Offset X:</span>
+            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.2 ? 'text-green-400' : 'text-yellow-400'}>
+              {debugInfo.centerOffsetX > 0 ? '+' : ''}{debugInfo.centerOffsetX}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Offset Y:</span>
+            <span className={Math.abs(debugInfo.centerOffsetY) <= 0.2 ? 'text-green-400' : 'text-yellow-400'}>
+              {debugInfo.centerOffsetY > 0 ? '+' : ''}{debugInfo.centerOffsetY}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Brightness:</span>
+            <span className={debugInfo.brightness >= 50 ? 'text-green-400' : 'text-red-400'}>
+              {debugInfo.brightness} <span className="text-gray-500">(50+)</span>
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Pose:</span>
+            <span className={debugInfo.poseOk ? 'text-green-400' : 'text-yellow-400'}>
+              {debugInfo.poseOk ? '✅ OK' : '⚠️ 틀어짐'}
+            </span>
+          </div>
+          <div className="flex justify-between pt-1 border-t border-gray-600">
+            <span className="text-gray-400">Status:</span>
+            <span className={
+              debugInfo.status === 'Lock-on' ? 'text-[#00FFC2] font-bold' : 
+              debugInfo.status === 'Capturing' ? 'text-yellow-400 font-bold' : 'text-gray-300'
+            }>
+              {debugInfo.status}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Progress:</span>
+            <span className="text-[#00FFC2]">{Math.round(lockOnProgress)}%</span>
+          </div>
         </div>
       )}
 
