@@ -125,6 +125,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // recommendations가 없으면 기본값 추가
+    if (!analysisResult.recommendations || !Array.isArray(analysisResult.recommendations)) {
+      console.warn('AI가 recommendations를 반환하지 않음, 기본값 사용')
+      analysisResult.recommendations = []
+    }
+
     // ============================================
     // 3. DB 저장 (skin_reports 테이블)
     // ============================================
