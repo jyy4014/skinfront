@@ -76,6 +76,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     poseOk: false,
     yawRatio: 0, // 좌우 회전 비율
     pitchRatio: 0, // 상하 기울기 비율
+    rollAngle: 0, // 머리 기울기 (도)
   })
   const [showDebugOverlay, setShowDebugOverlay] = useState(true) // 디버그 오버레이 표시 여부
 
@@ -460,9 +461,9 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         brightness: Math.round(avgLuminance),
       }))
 
-      // 🔧 완화: 80 -> 50 (더 어두워도 OK)
-      if (avgLuminance < 50) {
-        return { ok: false, message: `🚫 어두워요! (밝기: ${Math.round(avgLuminance)}, 목표: 50+)` }
+      // 🔒 엄격: 피부 진단에 충분한 밝기 필요 (80 이상)
+      if (avgLuminance < 80) {
+        return { ok: false, message: `💡 밝기 부족! (${Math.round(avgLuminance)} → 80 필요)` }
       }
 
       return { ok: true, message: '' }
@@ -472,10 +473,10 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     }
   }
 
-  // 얼굴 각도(Pose) 감지 함수
-  const checkFacePose = (landmarks: NormalizedLandmark[]): { ok: boolean; message: string; yawRatio: number; pitchRatio: number } => {
+  // 얼굴 각도(Pose) 감지 함수 - 🔒 엄격 모드
+  const checkFacePose = (landmarks: NormalizedLandmark[]): { ok: boolean; message: string; yawRatio: number; pitchRatio: number; rollAngle: number } => {
     if (landmarks.length < 468) {
-      return { ok: true, message: '', yawRatio: 1, pitchRatio: 1 } // 랜드마크가 부족하면 통과
+      return { ok: false, message: '얼굴 랜드마크 부족', yawRatio: 1, pitchRatio: 1, rollAngle: 0 }
     }
 
     try {
@@ -485,14 +486,29 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       const RIGHT_EAR = 454 // 오른쪽 귀 (대략)
       const CHIN = 18 // 턱
       const FOREHEAD = 10 // 이마 (대략)
+      const LEFT_EYE_OUTER = 33 // 왼쪽 눈 바깥쪽
+      const RIGHT_EYE_OUTER = 263 // 오른쪽 눈 바깥쪽
 
       const noseTip = landmarks[NOSE_TIP]
       const leftEar = landmarks[LEFT_EAR]
       const rightEar = landmarks[RIGHT_EAR]
       const chin = landmarks[CHIN]
       const forehead = landmarks[FOREHEAD]
+      const leftEyeOuter = landmarks[LEFT_EYE_OUTER]
+      const rightEyeOuter = landmarks[RIGHT_EYE_OUTER]
 
-      // 좌우 회전(Yaw) 검사: 코끝과 양쪽 귀의 거리 비율
+      // 🔒 Roll (머리 기울기) 검사: 양쪽 눈의 Y좌표 차이 (10도 ≈ tan(10°) ≈ 0.176)
+      const eyeDeltaX = Math.abs(rightEyeOuter.x - leftEyeOuter.x)
+      const eyeDeltaY = rightEyeOuter.y - leftEyeOuter.y // 부호 유지 (방향 판단용)
+      const rollAngle = Math.atan2(Math.abs(eyeDeltaY), eyeDeltaX) * (180 / Math.PI)
+      
+      if (rollAngle > 10) {
+        const direction = eyeDeltaY > 0 ? '⤵️ 머리를 오른쪽으로' : '⤴️ 머리를 왼쪽으로'
+        return { ok: false, message: `${direction} 기울어짐 (${rollAngle.toFixed(0)}°)`, yawRatio: 1, pitchRatio: 1, rollAngle }
+      }
+
+      // 🔒 좌우 회전(Yaw) 검사: 코끝과 양쪽 귀의 거리 비율
+      // 1.2 ≈ 10도 기울어짐
       const distLeft = Math.sqrt(
         Math.pow(noseTip.x - leftEar.x, 2) + Math.pow(noseTip.y - leftEar.y, 2)
       )
@@ -500,13 +516,13 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         Math.pow(noseTip.x - rightEar.x, 2) + Math.pow(noseTip.y - rightEar.y, 2)
       )
 
-      // 🔧 완화: 1.3 → 1.5 (좌우 회전 허용치 증가)
       const yawRatio = Math.max(distLeft, distRight) / Math.min(distLeft, distRight)
-      if (yawRatio > 1.5) {
-        return { ok: false, message: `👀 정면을 응시해주세요 (좌우: ${yawRatio.toFixed(2)})`, yawRatio, pitchRatio: 1 }
+      if (yawRatio > 1.2) {
+        const direction = distLeft > distRight ? '➡️ 오른쪽을 보고 있어요' : '⬅️ 왼쪽을 보고 있어요'
+        return { ok: false, message: `👀 ${direction} - 정면을 봐주세요`, yawRatio, pitchRatio: 1, rollAngle }
       }
 
-      // 상하 기울기(Pitch) 검사: 코와 턱, 이마의 거리
+      // 🔒 상하 기울기(Pitch) 검사: 코와 턱, 이마의 거리
       const distChin = Math.sqrt(
         Math.pow(noseTip.x - chin.x, 2) + Math.pow(noseTip.y - chin.y, 2)
       )
@@ -514,16 +530,16 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         Math.pow(noseTip.x - forehead.x, 2) + Math.pow(noseTip.y - forehead.y, 2)
       )
 
-      // 🔧 완화: 1.5 → 2.0 (상하 기울기 허용치 증가 - 폰을 내려다보는 경우가 많으므로)
       const pitchRatio = Math.max(distChin, distForehead) / Math.min(distChin, distForehead)
-      if (pitchRatio > 2.0) {
-        return { ok: false, message: `👀 정면을 응시해주세요 (상하: ${pitchRatio.toFixed(2)})`, yawRatio, pitchRatio }
+      if (pitchRatio > 1.3) {
+        const direction = distChin > distForehead ? '⬇️ 턱을 들어주세요' : '⬆️ 턱을 내려주세요'
+        return { ok: false, message: `👀 ${direction}`, yawRatio, pitchRatio, rollAngle }
       }
 
-      return { ok: true, message: '', yawRatio, pitchRatio }
+      return { ok: true, message: '', yawRatio, pitchRatio, rollAngle }
     } catch (error) {
       console.error('Pose check error:', error)
-      return { ok: true, message: '', yawRatio: 1, pitchRatio: 1 } // 에러 발생 시 통과
+      return { ok: false, message: '자세 판정 오류', yawRatio: 1, pitchRatio: 1, rollAngle: 0 }
     }
   }
 
@@ -568,7 +584,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     const faceWidthRatio = faceBounds.width / guideWidth
     const faceHeightRatio = faceBounds.height / guideHeight
 
-    // 2단계: 얼굴 각도(Pose) 검사 (우선순위 2위)
+    // 2단계: 얼굴 각도(Pose) 검사 (우선순위 2위) - 🔒 엄격
     const poseCheck = checkFacePose(landmarks)
     
     // 🐛 디버그 정보 업데이트 (모든 값을 한번에, 조기 리턴 전에!)
@@ -577,6 +593,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       poseOk: poseCheck.ok,
       yawRatio: Math.round(poseCheck.yawRatio * 100) / 100,
       pitchRatio: Math.round(poseCheck.pitchRatio * 100) / 100,
+      rollAngle: Math.round(poseCheck.rollAngle * 10) / 10,
       faceWidthRatio: Math.round(faceWidthRatio * 100),
       faceHeightRatio: Math.round(faceHeightRatio * 100),
       centerOffsetX: Math.round(normalizedOffsetX * 100) / 100,
@@ -587,93 +604,75 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     if (!poseCheck.ok) {
       setPoseStatus('not-frontal')
       setGuideMessage(poseCheck.message)
-      setGuideColor('yellow')
-      return { aligned: false, message: poseCheck.message, color: 'yellow' }
+      setGuideColor('white') // 🔒 조건 미달 시 흰색
+      return { aligned: false, message: poseCheck.message, color: 'white' }
     }
     setPoseStatus('ok')
 
-    // 3단계: 거리 및 위치 검사 (우선순위 3위)
-    // 🎯 High Angle Correction: 코끝(1) 대신 미간/눈썹 사이(168)를 기준으로 사용
+    // 3단계: 위치(중심) 검사 - 🔒 엄격 (±8% 허용)
     if (!glabella) {
-      setGuideMessage('얼굴을 가이드 안에 맞춰주세요')
+      setGuideMessage('👤 얼굴을 가이드 안에 맞춰주세요')
       setGuideColor('white')
-      return { aligned: false, message: '얼굴을 가이드 안에 맞춰주세요', color: 'white' }
+      return { aligned: false, message: '👤 얼굴을 가이드 안에 맞춰주세요', color: 'white' }
     }
 
-    // 📱 핸드폰 높이 교정 피드백
-    // 미간이 화면의 0.30~0.60 범위에 있어야 정상 (눈높이 촬영) - 🔧 완화
-    const idealYMin = 0.30
-    const idealYMax = 0.60
+    // 🔒 엄격: Y축 오차 ±8% (화면 중앙 기준)
+    const idealY = 0.42 // 화면 상단 42% 위치가 이상적
+    const maxYOffset = 0.08 // ±8%
+    const yOffset = normalizedY - idealY
     
-    if (normalizedY > idealYMax) {
-      // 미간이 너무 아래 = 폰을 너무 낮게 들고 있음
-      setGuideMessage(`📱 핸드폰을 눈높이로 들어주세요 (Y: ${(normalizedY * 100).toFixed(0)}%)`)
-      setGuideColor('yellow')
-      return { aligned: false, message: '📱 핸드폰을 눈높이로 들어주세요', color: 'yellow' }
+    if (Math.abs(yOffset) > maxYOffset) {
+      if (yOffset > 0) {
+        // 얼굴이 너무 아래 = 폰을 들어야 함
+        setGuideMessage(`⬆️ 폰을 조금 높여주세요 (${(yOffset * 100).toFixed(0)}% 벗어남)`)
+        setGuideColor('white')
+        return { aligned: false, message: '⬆️ 폰을 높여주세요', color: 'white' }
+      } else {
+        // 얼굴이 너무 위 = 폰을 내려야 함
+        setGuideMessage(`⬇️ 폰을 조금 낮춰주세요 (${(Math.abs(yOffset) * 100).toFixed(0)}% 벗어남)`)
+        setGuideColor('white')
+        return { aligned: false, message: '⬇️ 폰을 낮춰주세요', color: 'white' }
+      }
     }
+
+    // 🔒 엄격: X축 오차 ±8% (화면 중앙 기준)
+    const maxXOffset = 0.08 // ±8%
     
-    if (normalizedY < idealYMin) {
-      // 미간이 너무 위 = 폰을 너무 높게 들고 있음
-      setGuideMessage(`👇 핸드폰을 조금만 내려주세요 (Y: ${(normalizedY * 100).toFixed(0)}%)`)
-      setGuideColor('yellow')
-      return { aligned: false, message: '👇 핸드폰을 조금만 내려주세요', color: 'yellow' }
-    }
-
-    // X축 위치 판별 (좌우 중앙)
-    const centerXDiff = Math.abs(referenceX - guideCenterX)
-    // 🔧 완화: 25% 허용 오차 (기존 20%)
-    const maxCenterDiffX = screenWidth * 0.25
-    const isCenteredX = centerXDiff <= maxCenterDiffX
-    
-    // X축이 벗어난 경우에만 체크 (Y축은 위에서 이미 체크함)
-    const isCentered = isCenteredX
-
-    // 🔧 완화: 기존보다 훨씬 넓은 범위 허용
-    const minFillRatio = 0.30 // 30% 미만이면 너무 멀음 (기존 35%)
-    const maxFillRatio = 0.98 // 98% 초과면 너무 가까움 (기존 95%)
-    const perfectMinRatio = 0.35 // 35% 이상이면 OK (기존 40%)
-    const perfectMaxRatio = 0.95 // 95% 이하면 OK (기존 92%)
-
-    // X축 위치가 벗어난 경우 - 좌우 방향 안내 (Y축은 위에서 핸드폰 높이로 체크함)
-    if (!isCentered) {
+    if (Math.abs(normalizedOffsetX) > maxXOffset) {
       // 미러링된 화면이므로 방향 반전
-      const direction = normalizedOffsetX > 0.05 ? '👈 왼쪽으로' : '👉 오른쪽으로'
-      setGuideMessage(`${direction} 조금만! (오차: ${Math.round(Math.abs(normalizedOffsetX) * 100)}%)`)
-      setGuideColor('yellow')
-      return { aligned: false, message: `${direction} 조금만!`, color: 'yellow' }
+      if (normalizedOffsetX > 0) {
+        setGuideMessage(`⬅️ 얼굴을 중앙으로 (${(normalizedOffsetX * 100).toFixed(0)}% 왼쪽으로)`)
+        setGuideColor('white')
+        return { aligned: false, message: '⬅️ 얼굴을 중앙으로', color: 'white' }
+      } else {
+        setGuideMessage(`➡️ 얼굴을 중앙으로 (${(Math.abs(normalizedOffsetX) * 100).toFixed(0)}% 오른쪽으로)`)
+        setGuideColor('white')
+        return { aligned: false, message: '➡️ 얼굴을 중앙으로', color: 'white' }
+      }
     }
 
-    // 거리가 너무 먼 경우 - 현재 비율 표시
-    if (faceWidthRatio < minFillRatio) {
-      setGuideMessage(`🔍 더 가까이! (현재: ${Math.round(faceWidthRatio * 100)}%, 목표: ${Math.round(minFillRatio * 100)}%+)`)
+    // 4단계: 거리(크기) 검사 - 🔒 엄격 (60~85% 범위만 허용)
+    const MIN_SIZE_RATIO = 0.60 // 60% 미만 = 너무 멀음
+    const MAX_SIZE_RATIO = 0.85 // 85% 초과 = 너무 가까움 (잘림 방지)
+
+    // 거리가 너무 먼 경우
+    if (faceWidthRatio < MIN_SIZE_RATIO) {
+      setGuideMessage(`🔍 더 가까이 오세요 (${Math.round(faceWidthRatio * 100)}% → 60% 필요)`)
       setGuideColor('white')
-      return { aligned: false, message: `🔍 더 가까이! (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
+      return { aligned: false, message: '🔍 더 가까이 오세요', color: 'white' }
     }
 
-    // 거리가 너무 가까운 경우
-    if (faceWidthRatio > maxFillRatio) {
-      setGuideMessage(`✋ 조금 뒤로! (현재: ${Math.round(faceWidthRatio * 100)}%, 최대: ${Math.round(maxFillRatio * 100)}%)`)
+    // 거리가 너무 가까운 경우 (잘림 방지)
+    if (faceWidthRatio > MAX_SIZE_RATIO) {
+      setGuideMessage(`✋ 조금만 뒤로 가세요 (${Math.round(faceWidthRatio * 100)}% → 85% 이하)`)
       setGuideColor('white')
-      return { aligned: false, message: `✋ 조금 뒤로! (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
+      return { aligned: false, message: '✋ 조금만 뒤로 가세요', color: 'white' }
     }
 
-    // 🎉 완벽한 상태 - 조건 대폭 완화 (40%~92% 범위면 OK)
-    if (faceWidthRatio >= perfectMinRatio && faceWidthRatio <= perfectMaxRatio) {
-      setGuideMessage(`✨ 좋아요! 유지하세요 (${Math.round(faceWidthRatio * 100)}%)`)
-      setGuideColor('mint')
-      return { aligned: true, message: `✨ 좋아요! (${Math.round(faceWidthRatio * 100)}%)`, color: 'mint' }
-    }
-
-    // 중간 상태 (35%~40%)
-    if (faceWidthRatio < perfectMinRatio) {
-      setGuideMessage(`🔍 조금만 더 가까이 (${Math.round(faceWidthRatio * 100)}% → ${Math.round(perfectMinRatio * 100)}%)`)
-      setGuideColor('white')
-      return { aligned: false, message: `🔍 조금만 더 (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
-    } else {
-      setGuideMessage(`✋ 살짝 뒤로 (${Math.round(faceWidthRatio * 100)}% → ${Math.round(perfectMaxRatio * 100)}%)`)
-      setGuideColor('white')
-      return { aligned: false, message: `✋ 살짝 뒤로 (${Math.round(faceWidthRatio * 100)}%)`, color: 'white' }
-    }
+    // 🎉 모든 조건 통과! - 가이드라인 민트색 + 굵게
+    setGuideMessage(`✨ 완벽해요! 유지하세요 (${Math.round(faceWidthRatio * 100)}%)`)
+    setGuideColor('mint')
+    return { aligned: true, message: '✨ 완벽해요!', color: 'mint' }
   }
 
   // 얼굴 정렬 검사 (Face ID 스타일 - 엄격한 판정) - 기존 함수 유지 (호환성, 사용되지 않음)
@@ -1301,7 +1300,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       return
     }
 
-    const LOCK_ON_DURATION = 1000 // 🔧 완화: 2초 -> 1초 (빠른 촬영)
+    const LOCK_ON_DURATION = 1500 // 🔒 엄격: 1.5초 유지해야 촬영
     
     // 3단계 검증이 모두 Pass인지 확인하는 함수
     const checkConditions = () => {
@@ -1492,11 +1491,11 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         </div>
       )}
 
-      {/* 🐛 디버그 오버레이 */}
+      {/* 🐛 디버그 오버레이 - 🔒 엄격 모드 */}
       {showDebugOverlay && scanningStage === 'idle' && (
-        <div className="absolute top-4 left-4 z-30 p-3 bg-black/80 backdrop-blur-sm rounded-lg text-xs font-mono text-white space-y-1 min-w-[220px]">
+        <div className="absolute top-4 left-4 z-30 p-3 bg-black/90 backdrop-blur-sm rounded-lg text-xs font-mono text-white space-y-1 min-w-[240px] border border-gray-700">
           <div className="flex justify-between items-center mb-2 pb-1 border-b border-gray-600">
-            <span className="font-bold text-[#00FFC2]">🐛 DEBUG</span>
+            <span className="font-bold text-[#00FFC2]">🔒 STRICT MODE</span>
             <button 
               onClick={() => setShowDebugOverlay(false)}
               className="text-gray-400 hover:text-white"
@@ -1505,77 +1504,81 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             </button>
           </div>
           
-          {/* 얼굴 감지 상태 */}
+          {/* 1. 얼굴 감지 상태 */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Face:</span>
+            <span className="text-gray-400">1️⃣ Face:</span>
             <span className={debugInfo.faceDetected ? 'text-green-400' : 'text-red-400'}>
               {debugInfo.faceDetected ? '✅ 감지됨' : '❌ 없음'}
             </span>
           </div>
           
-          {/* 얼굴 크기 */}
+          {/* 2. 밝기 (>80) */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Size W:</span>
-            <span className={debugInfo.faceWidthRatio >= 35 && debugInfo.faceWidthRatio <= 95 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.faceWidthRatio}% <span className="text-gray-500">(35-95)</span>
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Size H:</span>
-            <span className={debugInfo.faceHeightRatio >= 35 && debugInfo.faceHeightRatio <= 95 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.faceHeightRatio}%
+            <span className="text-gray-400">2️⃣ Bright:</span>
+            <span className={debugInfo.brightness >= 80 ? 'text-green-400' : 'text-red-400'}>
+              {debugInfo.brightness} <span className="text-gray-500">(≥80)</span>
             </span>
           </div>
           
-          {/* 미간 Y 좌표 (핸드폰 높이 판정용) */}
+          {/* 3. Pose (자세) */}
           <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">Glabella Y:</span>
-            <span className={debugInfo.glabellaY >= 0.30 && debugInfo.glabellaY <= 0.60 ? 'text-green-400' : 'text-yellow-400'}>
-              {(debugInfo.glabellaY * 100).toFixed(0)}% <span className="text-gray-500">(30-60)</span>
+            <span className="text-gray-400">3️⃣ Pose:</span>
+            <span className={debugInfo.poseOk ? 'text-green-400' : 'text-red-400'}>
+              {debugInfo.poseOk ? '✅ 정면' : '❌ 틀어짐'}
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] ml-4">
+            <span className="text-gray-500">Roll:</span>
+            <span className={debugInfo.rollAngle <= 10 ? 'text-gray-400' : 'text-red-400'}>
+              {debugInfo.rollAngle.toFixed(1)}° <span className="text-gray-600">(≤10°)</span>
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] ml-4">
+            <span className="text-gray-500">Yaw:</span>
+            <span className={debugInfo.yawRatio <= 1.2 ? 'text-gray-400' : 'text-red-400'}>
+              {debugInfo.yawRatio.toFixed(2)} <span className="text-gray-600">(≤1.2)</span>
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] ml-4">
+            <span className="text-gray-500">Pitch:</span>
+            <span className={debugInfo.pitchRatio <= 1.3 ? 'text-gray-400' : 'text-red-400'}>
+              {debugInfo.pitchRatio.toFixed(2)} <span className="text-gray-600">(≤1.3)</span>
             </span>
           </div>
           
-          {/* X축 오프셋 */}
-          <div className="flex justify-between">
-            <span className="text-gray-400">Offset X:</span>
-            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.25 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.centerOffsetX > 0 ? '+' : ''}{(debugInfo.centerOffsetX * 100).toFixed(0)}% <span className="text-gray-500">(±25)</span>
-            </span>
-          </div>
-          
-          {/* 밝기 */}
+          {/* 4. 위치 (중심 ±8%) */}
           <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">Brightness:</span>
-            <span className={debugInfo.brightness >= 50 ? 'text-green-400' : 'text-red-400'}>
-              {debugInfo.brightness} <span className="text-gray-500">(50+)</span>
+            <span className="text-gray-400">4️⃣ Center:</span>
+            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.08 && Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? 'text-green-400' : 'text-red-400'}>
+              {Math.abs(debugInfo.centerOffsetX) <= 0.08 && Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? '✅ 중앙' : '❌ 벗어남'}
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] ml-4">
+            <span className="text-gray-500">X:</span>
+            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.08 ? 'text-gray-400' : 'text-red-400'}>
+              {debugInfo.centerOffsetX > 0 ? '+' : ''}{(debugInfo.centerOffsetX * 100).toFixed(0)}% <span className="text-gray-600">(±8%)</span>
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] ml-4">
+            <span className="text-gray-500">Y:</span>
+            <span className={Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? 'text-gray-400' : 'text-red-400'}>
+              {(debugInfo.glabellaY * 100).toFixed(0)}% <span className="text-gray-600">(34-50%)</span>
             </span>
           </div>
           
-          {/* Pose 정보 */}
-          <div className="flex justify-between">
-            <span className="text-gray-400">Pose:</span>
-            <span className={debugInfo.poseOk ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.poseOk ? '✅ OK' : '⚠️ 틀어짐'}
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-gray-500">└ Yaw:</span>
-            <span className={debugInfo.yawRatio <= 1.5 ? 'text-gray-400' : 'text-yellow-400'}>
-              {debugInfo.yawRatio.toFixed(2)} <span className="text-gray-600">(≤1.5)</span>
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-gray-500">└ Pitch:</span>
-            <span className={debugInfo.pitchRatio <= 2.0 ? 'text-gray-400' : 'text-yellow-400'}>
-              {debugInfo.pitchRatio.toFixed(2)} <span className="text-gray-600">(≤2.0)</span>
+          {/* 5. 거리 (60~85%) */}
+          <div className="flex justify-between pt-1 border-t border-gray-700">
+            <span className="text-gray-400">5️⃣ Size:</span>
+            <span className={debugInfo.faceWidthRatio >= 60 && debugInfo.faceWidthRatio <= 85 ? 'text-green-400' : 'text-red-400'}>
+              {debugInfo.faceWidthRatio}% <span className="text-gray-500">(60-85%)</span>
             </span>
           </div>
           
           {/* 상태 및 진행률 */}
-          <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">Status:</span>
+          <div className="flex justify-between pt-2 mt-1 border-t border-[#00FFC2]/30">
+            <span className="text-[#00FFC2]">Status:</span>
             <span className={
-              debugInfo.status === 'Lock-on' ? 'text-[#00FFC2] font-bold' : 
+              debugInfo.status === 'Lock-on' ? 'text-[#00FFC2] font-bold animate-pulse' : 
               debugInfo.status === 'Capturing' ? 'text-yellow-400 font-bold' : 'text-gray-300'
             }>
               {debugInfo.status}
@@ -1583,7 +1586,15 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Progress:</span>
-            <span className="text-[#00FFC2]">{Math.round(lockOnProgress)}%</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-[#00FFC2] rounded-full transition-all duration-100"
+                  style={{ width: `${lockOnProgress}%` }}
+                />
+              </div>
+              <span className="text-[#00FFC2] w-8 text-right">{Math.round(lockOnProgress)}%</span>
+            </div>
           </div>
         </div>
       )}
