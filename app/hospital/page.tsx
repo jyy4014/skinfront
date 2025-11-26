@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
-import { ArrowLeft, Search, Phone, Calendar, MapPin, Star } from 'lucide-react'
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
+import { ArrowLeft, Search, Phone, Calendar, MapPin, Star, Loader2, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
@@ -9,6 +9,14 @@ import ReservationModal from '@/app/components/hospital/ReservationModal'
 import toast from 'react-hot-toast'
 import type { HospitalData, Event } from '@/app/components/RealMap'
 import { formatPrice } from '@/lib/utils'
+
+// OSM Nominatim API 응답 타입
+interface NominatimResult {
+  lat: string
+  lon: string
+  display_name: string
+  type: string
+}
 
 // RealMap 컴포넌트를 SSR 없이 동적으로 로드
 const RealMap = dynamic(() => import('@/app/components/RealMap').then((mod) => mod.default), {
@@ -33,6 +41,11 @@ function HospitalPageContent() {
   const [selectedHospitalId, setSelectedHospitalId] = useState<number | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const hospitalListRef = useRef<HTMLDivElement>(null)
+
+  // 🗺️ 위치 기반 검색 상태
+  const [isSearching, setIsSearching] = useState(false)
+  const [flyToLocation, setFlyToLocation] = useState<[number, number] | null>(null)
+  const [searchLocationName, setSearchLocationName] = useState<string | null>(null)
 
   // 병원 데이터 (Mock) - 정확한 인터페이스 구조 준수
   // 좌표를 강남역 주변으로 분산 배치
@@ -195,23 +208,110 @@ function HospitalPageContent() {
     }
   }, [searchParams])
 
-  // 검색어 변경 시 필터링 및 isMain 동적 설정
+  // 검색어 변경 시 필터링 (실시간)
   const handleSearchChange = (value: string) => {
     setSearchKeyword(value)
-    if (value.trim()) {
+    // 실시간 필터링은 병원명/시술명만
+    filterHospitals(value)
+  }
+
+  // 병원 필터링 로직 (분리)
+  const filterHospitals = useCallback((keyword: string) => {
+    if (keyword.trim()) {
+      const lowerKeyword = keyword.toLowerCase()
       const filtered = allPricePins.filter((pin) =>
-        pin.keywords.some((k) => k.includes(value) || value.includes(k))
+        // 키워드, 병원명, 이벤트명 모두에서 검색
+        pin.keywords.some((k) => k.toLowerCase().includes(lowerKeyword) || lowerKeyword.includes(k.toLowerCase())) ||
+        pin.name.toLowerCase().includes(lowerKeyword) ||
+        pin.events.some((e) => e.name.toLowerCase().includes(lowerKeyword))
       )
       const processed = processHospitalsWithSearchKeyword(
         filtered.length > 0 ? filtered : allPricePins,
-        value
+        keyword
       )
       setFilteredPins(processed)
+      return filtered.length > 0
     } else {
       const processed = processHospitalsWithSearchKeyword(allPricePins, null)
       setFilteredPins(processed)
+      return true
     }
-  }
+  }, [allPricePins])
+
+  // 🗺️ 지역명 검색 (OSM Nominatim)
+  const searchLocation = useCallback(async (query: string): Promise<[number, number] | null> => {
+    try {
+      const encodedQuery = encodeURIComponent(query)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&countrycodes=kr&limit=1`,
+        {
+          headers: {
+            'Accept-Language': 'ko',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('위치 검색 실패')
+      }
+
+      const results: NominatimResult[] = await response.json()
+
+      if (results.length > 0) {
+        const { lat, lon, display_name } = results[0]
+        setSearchLocationName(display_name.split(',')[0]) // 첫 번째 부분만 표시
+        return [parseFloat(lat), parseFloat(lon)]
+      }
+
+      return null
+    } catch (error) {
+      console.error('Location search error:', error)
+      return null
+    }
+  }, [])
+
+  // 🔍 통합 검색 (엔터 시 실행)
+  const handleSearchSubmit = useCallback(async (e?: React.FormEvent) => {
+    e?.preventDefault()
+
+    if (!searchKeyword.trim()) {
+      toast.error('검색어를 입력해주세요')
+      return
+    }
+
+    setIsSearching(true)
+    setSearchLocationName(null)
+
+    try {
+      // A. 병원/시술 필터링
+      const hasHospitalResults = filterHospitals(searchKeyword)
+
+      // B. 지역명 검색 (Geocoding)
+      const location = await searchLocation(searchKeyword)
+
+      if (location) {
+        // 지역이 발견되면 지도 이동
+        setFlyToLocation(location)
+        toast.success(`📍 ${searchLocationName || searchKeyword} 지역으로 이동합니다`, {
+          duration: 2000,
+        })
+      } else if (!hasHospitalResults) {
+        // 지역도 없고 병원도 없으면
+        toast.error('검색 결과가 없습니다', {
+          icon: '🔍',
+          duration: 2000,
+        })
+      } else {
+        // 병원만 발견
+        toast.success(`'${searchKeyword}' 검색 결과 ${filteredPins.length}개`, {
+          icon: '🔍',
+          duration: 2000,
+        })
+      }
+    } finally {
+      setIsSearching(false)
+    }
+  }, [searchKeyword, filterHospitals, searchLocation, searchLocationName, filteredPins.length])
 
 
   // 마커 클릭 핸들러
@@ -241,31 +341,74 @@ function HospitalPageContent() {
         hospitals={pricePins}
         selectedId={selectedHospitalId}
         onMarkerClick={handleMarkerClick}
+        flyToLocation={flyToLocation}
       />
 
       {/* 상단 검색바 (Floating) */}
       <div className="absolute top-4 left-0 right-0 z-10 px-4">
         <div className="max-w-[430px] mx-auto">
-          <div className="flex items-center gap-3 bg-white shadow-lg rounded-full px-4 py-3">
-            <button
-              onClick={() => router.back()}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="뒤로가기"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-700" />
-            </button>
-            <div className="flex-1 flex items-center gap-2">
-              <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="시술명 검색 (예: 피코토닝, 기미, 모공)"
-                className="flex-1 text-gray-800 text-sm font-medium bg-transparent border-none outline-none placeholder:text-gray-400"
-              />
+          <form onSubmit={handleSearchSubmit}>
+            <div className="flex items-center gap-3 bg-white shadow-lg rounded-full px-4 py-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="뒤로가기"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-700" />
+              </button>
+              <div className="flex-1 flex items-center gap-2">
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 text-[#00FFC2] flex-shrink-0 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                )}
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="지역 또는 시술명 검색 (예: 강남, 피코토닝)"
+                  className="flex-1 text-gray-800 text-sm font-medium bg-transparent border-none outline-none placeholder:text-gray-400"
+                  disabled={isSearching}
+                />
+                {searchKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchKeyword('')
+                      setSearchLocationName(null)
+                      setFlyToLocation(null)
+                      filterHospitals('')
+                    }}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                )}
+              </div>
+              {/* 검색 버튼 */}
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="px-3 py-1.5 bg-[#00FFC2] text-black text-xs font-bold rounded-full hover:bg-[#00E6B8] transition-colors disabled:opacity-50"
+              >
+                {isSearching ? '검색중' : '검색'}
+              </button>
             </div>
-          </div>
+          </form>
+          
+          {/* 지역 검색 결과 표시 */}
+          {searchLocationName && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-2 px-4 py-2 bg-blue-500/90 text-white text-sm rounded-full flex items-center gap-2 w-fit"
+            >
+              <MapPin className="w-4 h-4" />
+              <span>📍 {searchLocationName} 주변</span>
+            </motion.div>
+          )}
         </div>
       </div>
 
