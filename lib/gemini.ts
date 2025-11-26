@@ -12,7 +12,7 @@ export function getGeminiClient() {
 }
 
 /**
- * Gemini 모델 인스턴스 생성 (gemini-1.5-flash)
+ * Gemini 모델 인스턴스 생성 (gemini-2.5-pro)
  * - JSON 강제 출력 모드로 파싱 에러 방지
  * - 낮은 temperature로 분석 일관성/정확도 향상
  */
@@ -20,7 +20,7 @@ export function getGeminiModel() {
   const genAI = getGeminiClient()
   
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-pro-preview-06-05',
     generationConfig: {
       responseMimeType: 'application/json', // JSON 강제 출력 모드 (에러 방지 핵심)
       temperature: 0.4, // 창의성 낮춤 -> 분석의 일관성/정확도 높임
