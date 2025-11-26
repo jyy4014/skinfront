@@ -478,6 +478,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
 
   // 얼굴 각도(Pose) 감지 함수 - 🧑 Human-Centric 로직
   // "사람이 폰을 내려다보는 습관"을 고려한 현실적인 판정
+  // ⚠️ 이 함수는 위치/거리가 적절할 때만 호출됨 (우선순위 3순위)
   const checkFacePose = (landmarks: NormalizedLandmark[]): { ok: boolean; message: string; yawRatio: number; pitchValue: number; rollAngle: number } => {
     if (landmarks.length < 468) {
       return { ok: false, message: '얼굴 랜드마크 부족', yawRatio: 1, pitchValue: 0, rollAngle: 0 }
@@ -504,10 +505,10 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       const leftDist = Math.abs(noseTip.x - leftEar.x)
       const rightDist = Math.abs(noseTip.x - rightEar.x)
       
-      // 비율 계산: 1.0 = 완벽한 대칭, 0.8~1.25 = 허용 범위 (20% 오차)
+      // 🔓 완화됨: 비율 계산: 1.0 = 완벽한 대칭, 0.7~1.4 = 허용 범위 (40% 오차)
       const yawRatio = leftDist / rightDist
       
-      if (yawRatio < 0.8 || yawRatio > 1.25) {
+      if (yawRatio < 0.7 || yawRatio > 1.4) {
         // 어느 쪽으로 돌아가 있는지 판단
         const direction = yawRatio < 1 
           ? '👈 얼굴을 왼쪽으로 살짝 돌려주세요' 
@@ -523,8 +524,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       const eyeDeltaY = rightEyeOuter.y - leftEyeOuter.y // 부호 유지 (방향 판단용)
       const rollAngle = Math.atan2(Math.abs(eyeDeltaY), eyeDeltaX) * (180 / Math.PI)
       
-      // ±8도까지 허용 (일반적인 무의식적 기울기)
-      if (rollAngle > 8) {
+      // 🔓 완화됨: ±10도까지 허용 (일반적인 무의식적 기울기)
+      if (rollAngle > 10) {
         const direction = eyeDeltaY > 0 
           ? '↩️ 고개를 살짝 왼쪽으로 기울여주세요' 
           : '↪️ 고개를 살짝 오른쪽으로 기울여주세요'
@@ -539,8 +540,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       const earCenterY = (leftEar.y + rightEar.y) / 2
       const pitchValue = (noseTip.y - earCenterY) * 100 // 정규화된 값 (퍼센트로 변환)
       
-      // 고개 들기(Up): 엄격하게 제한 (콧구멍 보이면 안 됨) - pitchValue < -5
-      if (pitchValue < -8) {
+      // 🔓 완화됨: 고개 들기(Up): 엄격하게 제한 (콧구멍 보이면 안 됨) - pitchValue < -10
+      if (pitchValue < -10) {
         return { 
           ok: false, 
           message: '⬇️ 턱을 살짝 내려주세요', 
@@ -550,8 +551,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         }
       }
       
-      // 고개 숙이기(Down): 관대하게 허용 (15~20도까지 OK) - pitchValue > 15
-      if (pitchValue > 18) {
+      // 🔓 완화됨: 고개 숙이기(Down): 관대하게 허용 (20~25도까지 OK) - pitchValue > 22
+      if (pitchValue > 22) {
         return { 
           ok: false, 
           message: '⬆️ 고개를 살짝 들어주세요', 
@@ -570,6 +571,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   }
 
   // 얼굴 정렬 검사 및 실시간 피드백 (Face ID 스타일 - 상세한 피드백 제공)
+  // 🔄 우선순위 변경: 1.조명 → 2.위치(Center) → 3.거리(Size) → 4.각도(Pose)
   const checkFaceAlignmentWithFeedback = (
     landmarks: NormalizedLandmark[],
     screenWidth: number,
@@ -584,9 +586,9 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     // 🎯 High Angle Correction: 가이드라인을 더 위로 올림 (눈높이 촬영 유도)
     const guideCenterY = screenHeight * 0.35 // 화면 상단 35% 위치 (기존 40%)
 
-    // 3단계 검증 시스템 (우선순위 순서대로 체크)
-
-    // 1단계: 조명(밝기) 검사 (우선순위 1위) - 화면 조명이 켜져 있으면 통과
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🥇 1순위: 조명(밝기) 검사 - 화면 조명이 켜져 있으면 통과
+    // ═══════════════════════════════════════════════════════════════════════════
     const lightingCheck = checkLighting(video)
     if (!lightingCheck.ok && !isScreenLightOn) {
       setLightingStatus('too-dark')
@@ -596,21 +598,22 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     }
     setLightingStatus('ok')
 
-    // 🎯 먼저 모든 계산을 수행하고 디버그 정보를 업데이트
-    // 3단계 거리 및 위치 관련 변수 미리 계산
+    // 🎯 먼저 모든 계산을 수행 (디버그 정보 업데이트용)
     const GLABELLA_INDEX = 168 // 미간 (눈썹 사이)
     const glabella = GLABELLA_INDEX < landmarks.length ? landmarks[GLABELLA_INDEX] : null
     const referenceX = glabella ? glabella.x * screenWidth : 0
-    const referenceY = glabella ? glabella.y * screenHeight : 0
     const normalizedY = glabella ? glabella.y : 0
     const normalizedOffsetX = glabella ? (referenceX - guideCenterX) / screenWidth : 0
-    const normalizedOffsetY = glabella ? normalizedY - 0.45 : 0
+    
+    // 🔓 완화됨: Y축 기준점을 45%로 (약간 위쪽)
+    const idealY = 0.45 // 화면 상단 45% 위치가 이상적 (기존 42%)
+    const normalizedOffsetY = glabella ? normalizedY - idealY : 0
     
     // 거리 판별 변수
     const faceWidthRatio = faceBounds.width / guideWidth
     const faceHeightRatio = faceBounds.height / guideHeight
 
-    // 2단계: 얼굴 각도(Pose) 검사 (우선순위 2위) - 🔒 엄격
+    // Pose 체크 결과 미리 계산 (디버그용, 실제 판정은 나중에)
     const poseCheck = checkFacePose(landmarks)
     
     // 🐛 디버그 정보 업데이트 (모든 값을 한번에, 조기 리턴 전에!)
@@ -624,79 +627,92 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       faceHeightRatio: Math.round(faceHeightRatio * 100),
       centerOffsetX: Math.round(normalizedOffsetX * 100) / 100,
       centerOffsetY: Math.round(normalizedOffsetY * 100) / 100,
-      glabellaY: Math.round(normalizedY * 100) / 100,
+      glabellaY: Math.round(normalizedY * 100),
     }))
-    
-    if (!poseCheck.ok) {
-      setPoseStatus('not-frontal')
-      setGuideMessage(poseCheck.message)
-      setGuideColor('white') // 🔒 조건 미달 시 흰색
-      return { aligned: false, message: poseCheck.message, color: 'white' }
-    }
-    setPoseStatus('ok')
 
-    // 3단계: 위치(중심) 검사 - 🔒 엄격 (±8% 허용)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🥈 2순위: 위치(Center) 검사 - 🚨 최우선 (각도보다 먼저!)
+    // ═══════════════════════════════════════════════════════════════════════════
     if (!glabella) {
       setGuideMessage('👤 얼굴을 가이드 안에 맞춰주세요')
       setGuideColor('white')
       return { aligned: false, message: '👤 얼굴을 가이드 안에 맞춰주세요', color: 'white' }
     }
 
-    // 🔒 엄격: Y축 오차 ±8% (화면 중앙 기준)
-    const idealY = 0.42 // 화면 상단 42% 위치가 이상적
-    const maxYOffset = 0.08 // ±8%
+    // 🚨 최우선 체크: Y좌표가 60% 이상이면 무조건 "폰을 높이 들어주세요"
+    if (normalizedY > 0.60) {
+      setGuideMessage('📱 핸드폰을 더 높이 들어주세요')
+      setGuideColor('white')
+      return { aligned: false, message: '📱 핸드폰을 더 높이 들어주세요', color: 'white' }
+    }
+
+    // 🔓 완화됨: Y축 오차 ±12% (기존 ±8%)
+    const maxYOffset = 0.12
     const yOffset = normalizedY - idealY
     
     if (Math.abs(yOffset) > maxYOffset) {
       if (yOffset > 0) {
         // 얼굴이 너무 아래 = 폰을 들어야 함
-        setGuideMessage(`⬆️ 폰을 조금 높여주세요 (${(yOffset * 100).toFixed(0)}% 벗어남)`)
+        setGuideMessage(`⬆️ 폰을 높여주세요`)
         setGuideColor('white')
         return { aligned: false, message: '⬆️ 폰을 높여주세요', color: 'white' }
       } else {
         // 얼굴이 너무 위 = 폰을 내려야 함
-        setGuideMessage(`⬇️ 폰을 조금 낮춰주세요 (${(Math.abs(yOffset) * 100).toFixed(0)}% 벗어남)`)
+        setGuideMessage(`⬇️ 폰을 낮춰주세요`)
         setGuideColor('white')
         return { aligned: false, message: '⬇️ 폰을 낮춰주세요', color: 'white' }
       }
     }
 
-    // 🔒 엄격: X축 오차 ±8% (화면 중앙 기준)
-    const maxXOffset = 0.08 // ±8%
+    // 🔓 완화됨: X축 오차 ±12% (기존 ±8%)
+    const maxXOffset = 0.12
     
     if (Math.abs(normalizedOffsetX) > maxXOffset) {
       // 미러링된 화면이므로 방향 반전
       if (normalizedOffsetX > 0) {
-        setGuideMessage(`⬅️ 얼굴을 중앙으로 (${(normalizedOffsetX * 100).toFixed(0)}% 왼쪽으로)`)
+        setGuideMessage(`⬅️ 얼굴을 중앙으로`)
         setGuideColor('white')
         return { aligned: false, message: '⬅️ 얼굴을 중앙으로', color: 'white' }
       } else {
-        setGuideMessage(`➡️ 얼굴을 중앙으로 (${(Math.abs(normalizedOffsetX) * 100).toFixed(0)}% 오른쪽으로)`)
+        setGuideMessage(`➡️ 얼굴을 중앙으로`)
         setGuideColor('white')
         return { aligned: false, message: '➡️ 얼굴을 중앙으로', color: 'white' }
       }
     }
 
-    // 4단계: 거리(크기) 검사 - 🔒 엄격 (60~85% 범위만 허용)
-    const MIN_SIZE_RATIO = 0.60 // 60% 미만 = 너무 멀음
-    const MAX_SIZE_RATIO = 0.85 // 85% 초과 = 너무 가까움 (잘림 방지)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🥉 3순위: 거리(크기) 검사 - 🔓 완화됨 (50~90% 범위)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const MIN_SIZE_RATIO = 0.50 // 50% 미만 = 너무 멀음 (기존 60%)
+    const MAX_SIZE_RATIO = 0.90 // 90% 초과 = 너무 가까움 (기존 85%)
 
     // 거리가 너무 먼 경우
     if (faceWidthRatio < MIN_SIZE_RATIO) {
-      setGuideMessage(`🔍 더 가까이 오세요 (${Math.round(faceWidthRatio * 100)}% → 60% 필요)`)
+      setGuideMessage(`🔍 더 가까이 오세요`)
       setGuideColor('white')
       return { aligned: false, message: '🔍 더 가까이 오세요', color: 'white' }
     }
 
     // 거리가 너무 가까운 경우 (잘림 방지)
     if (faceWidthRatio > MAX_SIZE_RATIO) {
-      setGuideMessage(`✋ 조금만 뒤로 가세요 (${Math.round(faceWidthRatio * 100)}% → 85% 이하)`)
+      setGuideMessage(`✋ 조금만 뒤로 가세요`)
       setGuideColor('white')
       return { aligned: false, message: '✋ 조금만 뒤로 가세요', color: 'white' }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 4순위: 각도(Pose) 검사 - 위치와 거리가 맞을 때만 체크!
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (!poseCheck.ok) {
+      setPoseStatus('not-frontal')
+      setGuideMessage(poseCheck.message)
+      setGuideColor('yellow') // 🎨 각도 문제는 노란색 (위치 문제보다 우선순위 낮음)
+      return { aligned: false, message: poseCheck.message, color: 'yellow' }
+    }
+    setPoseStatus('ok')
+
     // 🎉 모든 조건 통과! - 가이드라인 민트색 + 굵게
-    setGuideMessage(`✨ 완벽해요! 유지하세요 (${Math.round(faceWidthRatio * 100)}%)`)
+    setGuideMessage(`✨ 완벽해요! 유지하세요`)
     setGuideColor('mint')
     return { aligned: true, message: '✨ 완벽해요!', color: 'mint' }
   }
@@ -1551,120 +1567,105 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         </div>
       )}
 
-      {/* 🐛 디버그 오버레이 - 🧑 Human-Centric 모드 */}
-      {showDebugOverlay && scanningStage === 'idle' && (
-        <div className="absolute top-4 left-4 z-30 p-3 bg-black/90 backdrop-blur-sm rounded-lg text-xs font-mono text-white space-y-1 min-w-[250px] border border-gray-700">
-          <div className="flex justify-between items-center mb-2 pb-1 border-b border-gray-600">
-            <span className="font-bold text-[#00FFC2]">🧑 HUMAN-CENTRIC</span>
-            <button 
-              onClick={() => setShowDebugOverlay(false)}
-              className="text-gray-400 hover:text-white"
-            >
-              ✕
-            </button>
-          </div>
+      {/* 🐛 디버그 오버레이 - 🔄 새로운 우선순위 (위치→거리→각도) */}
+      {scanningStage === 'idle' && (
+        <div className="absolute top-2 left-2 z-30">
+          {/* 접기/펼치기 버튼 */}
+          <button
+            onClick={() => setShowDebugOverlay(!showDebugOverlay)}
+            className="flex items-center gap-1 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-[10px] font-mono text-gray-300 hover:bg-black/60 transition-colors"
+          >
+            <span>🐛</span>
+            <span>{showDebugOverlay ? '접기' : '펼치기'}</span>
+          </button>
           
-          {/* 1. 얼굴 감지 상태 */}
-          <div className="flex justify-between">
-            <span className="text-gray-400">1️⃣ Face:</span>
-            <span className={debugInfo.faceDetected ? 'text-green-400' : 'text-red-400'}>
-              {debugInfo.faceDetected ? '✅ 감지됨' : '❌ 없음'}
-            </span>
-          </div>
-          
-          {/* 2. 밝기 (≥80) */}
-          <div className="flex justify-between">
-            <span className="text-gray-400">2️⃣ Bright:</span>
-            <span className={debugInfo.brightness >= 80 ? 'text-green-400' : 'text-red-400'}>
-              {debugInfo.brightness} <span className="text-gray-500">(≥80)</span>
-            </span>
-          </div>
-          
-          {/* 3. Pose (자세) - Human-Centric 우선순위 */}
-          <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">3️⃣ Pose:</span>
-            <span className={debugInfo.poseOk ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.poseOk ? '✅ OK' : '⚠️ 조정필요'}
-            </span>
-          </div>
-          
-          {/* 3-1. 🥇 Yaw (좌우 대칭) - 가장 중요! */}
-          <div className="flex justify-between text-[10px] ml-4">
-            <span className="text-yellow-400">🥇 Yaw:</span>
-            <span className={debugInfo.yawRatio >= 0.8 && debugInfo.yawRatio <= 1.25 ? 'text-green-400' : 'text-red-400'}>
-              {debugInfo.yawRatio.toFixed(2)} <span className="text-gray-600">(0.8~1.25)</span>
-            </span>
-          </div>
-          
-          {/* 3-2. 🥈 Roll (갸우뚱) - 수평 맞추기 */}
-          <div className="flex justify-between text-[10px] ml-4">
-            <span className="text-gray-400">🥈 Roll:</span>
-            <span className={debugInfo.rollAngle <= 8 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.rollAngle.toFixed(1)}° <span className="text-gray-600">(±8°)</span>
-            </span>
-          </div>
-          
-          {/* 3-3. 🥉 Pitch (상하) - 가장 느슨! 내려다보기 허용 */}
-          <div className="flex justify-between text-[10px] ml-4">
-            <span className="text-gray-500">🥉 Pitch:</span>
-            <span className={debugInfo.pitchValue >= -8 && debugInfo.pitchValue <= 18 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.pitchValue > 0 ? '+' : ''}{debugInfo.pitchValue.toFixed(1)} <span className="text-gray-600">(-8~+18)</span>
-            </span>
-          </div>
-          <div className="text-[9px] text-gray-600 ml-4">
-            {debugInfo.pitchValue < 0 ? '↑고개들기' : debugInfo.pitchValue > 0 ? '↓내려다보기(OK)' : '정면'}
-          </div>
-          
-          {/* 4. 위치 (중심 ±8%) */}
-          <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">4️⃣ Center:</span>
-            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.08 && Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? 'text-green-400' : 'text-yellow-400'}>
-              {Math.abs(debugInfo.centerOffsetX) <= 0.08 && Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? '✅ 중앙' : '⚠️ 조정'}
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px] ml-4">
-            <span className="text-gray-500">X:</span>
-            <span className={Math.abs(debugInfo.centerOffsetX) <= 0.08 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.centerOffsetX > 0 ? '+' : ''}{(debugInfo.centerOffsetX * 100).toFixed(0)}% <span className="text-gray-600">(±8%)</span>
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px] ml-4">
-            <span className="text-gray-500">Y:</span>
-            <span className={Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 ? 'text-green-400' : 'text-yellow-400'}>
-              {(debugInfo.glabellaY * 100).toFixed(0)}% <span className="text-gray-600">(34-50%)</span>
-            </span>
-          </div>
-          
-          {/* 5. 거리 (60~85%) */}
-          <div className="flex justify-between pt-1 border-t border-gray-700">
-            <span className="text-gray-400">5️⃣ Size:</span>
-            <span className={debugInfo.faceWidthRatio >= 60 && debugInfo.faceWidthRatio <= 85 ? 'text-green-400' : 'text-yellow-400'}>
-              {debugInfo.faceWidthRatio}% <span className="text-gray-500">(60-85%)</span>
-            </span>
-          </div>
-          
-          {/* 상태 및 진행률 */}
-          <div className="flex justify-between pt-2 mt-1 border-t border-[#00FFC2]/30">
-            <span className="text-[#00FFC2]">Status:</span>
-            <span className={
-              debugInfo.status === 'Lock-on' ? 'text-[#00FFC2] font-bold animate-pulse' : 
-              debugInfo.status === 'Capturing' ? 'text-yellow-400 font-bold' : 'text-gray-300'
-            }>
-              {debugInfo.status}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Progress:</span>
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-[#00FFC2] rounded-full transition-all duration-100"
-                  style={{ width: `${lockOnProgress}%` }}
-                />
+          {/* 디버그 패널 (접힐 수 있음) */}
+          {showDebugOverlay && (
+            <div className="mt-1 p-2 bg-black/40 backdrop-blur-sm rounded text-[10px] font-mono text-white space-y-0.5 min-w-[180px]">
+              {/* 상태 표시 */}
+              <div className="flex justify-between items-center pb-1 border-b border-white/20">
+                <span className={
+                  debugInfo.status === 'Lock-on' ? 'text-[#00FFC2] font-bold' : 
+                  debugInfo.status === 'Capturing' ? 'text-yellow-400' : 'text-gray-400'
+                }>
+                  {debugInfo.status}
+                </span>
+                <div className="flex items-center gap-1">
+                  <div className="w-12 h-1 bg-white/20 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#00FFC2] rounded-full transition-all duration-100"
+                      style={{ width: `${lockOnProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[#00FFC2] w-6">{Math.round(lockOnProgress)}%</span>
+                </div>
               </div>
-              <span className="text-[#00FFC2] w-8 text-right">{Math.round(lockOnProgress)}%</span>
+              
+              {/* 1️⃣ Face 감지 */}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Face</span>
+                <span className={debugInfo.faceDetected ? 'text-green-400' : 'text-red-400'}>
+                  {debugInfo.faceDetected ? '✓' : '✗'}
+                </span>
+              </div>
+              
+              {/* 2️⃣ 위치 (최우선!) */}
+              <div className="flex justify-between">
+                <span className="text-yellow-400">📍 Y</span>
+                <span className={debugInfo.glabellaY <= 60 && debugInfo.glabellaY >= 33 ? 'text-green-400' : 'text-red-400'}>
+                  {debugInfo.glabellaY}% <span className="text-gray-600">(33-57%)</span>
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">📍 X</span>
+                <span className={Math.abs(debugInfo.centerOffsetX) <= 0.12 ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.centerOffsetX > 0 ? '+' : ''}{(debugInfo.centerOffsetX * 100).toFixed(0)}%
+                </span>
+              </div>
+              
+              {/* 3️⃣ 거리 */}
+              <div className="flex justify-between">
+                <span className="text-gray-500">📏 Size</span>
+                <span className={debugInfo.faceWidthRatio >= 50 && debugInfo.faceWidthRatio <= 90 ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.faceWidthRatio}% <span className="text-gray-600">(50-90%)</span>
+                </span>
+              </div>
+              
+              {/* 4️⃣ 각도 (마지막) */}
+              <div className="flex justify-between pt-0.5 border-t border-white/10">
+                <span className="text-gray-500">🎯 Pose</span>
+                <span className={debugInfo.poseOk ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.poseOk ? '✓' : '⚠️'}
+                </span>
+              </div>
+              <div className="flex justify-between text-[9px]">
+                <span className="text-gray-600">Yaw</span>
+                <span className={debugInfo.yawRatio >= 0.7 && debugInfo.yawRatio <= 1.4 ? 'text-green-400' : 'text-red-400'}>
+                  {debugInfo.yawRatio.toFixed(2)} <span className="text-gray-700">(0.7~1.4)</span>
+                </span>
+              </div>
+              <div className="flex justify-between text-[9px]">
+                <span className="text-gray-600">Roll</span>
+                <span className={debugInfo.rollAngle <= 10 ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.rollAngle.toFixed(1)}°
+                </span>
+              </div>
+              <div className="flex justify-between text-[9px]">
+                <span className="text-gray-600">Pitch</span>
+                <span className={debugInfo.pitchValue >= -10 && debugInfo.pitchValue <= 22 ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.pitchValue > 0 ? '+' : ''}{debugInfo.pitchValue.toFixed(0)}
+                </span>
+              </div>
+              
+              {/* 밝기 */}
+              <div className="flex justify-between text-[9px] pt-0.5 border-t border-white/10">
+                <span className="text-gray-600">💡 Bright</span>
+                <span className={debugInfo.brightness >= 80 ? 'text-green-400' : 'text-yellow-400'}>
+                  {debugInfo.brightness}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

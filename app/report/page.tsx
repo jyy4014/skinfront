@@ -11,6 +11,8 @@ import type { TreatmentRecommendation } from '../utils/simpleAnalysis'
 import { saveSkinRecord } from '../utils/storage'
 import AnalysisLoading from '../components/AnalysisLoading'
 import RewardAdModal from '../components/RewardAdModal'
+import { getGeminiAnalysisSettings } from '@/lib/appSettings'
+import { analyzeWithGemini } from '@/lib/skinAnalysisApi'
 
 // 원형 차트 컴포넌트
 function ScoreChart({ score, size = 160 }: { score: number; size?: number }) {
@@ -81,26 +83,68 @@ export default function ReportPage() {
   const [showRewardAd, setShowRewardAd] = useState(false)
   const [shouldShowAd, setShouldShowAd] = useState(false)
 
-  // 분석 실행 함수 (분리)
+  // 분석 실행 함수 (분리) - Gemini/휴리스틱 분기 처리
   const runAnalysis = async () => {
       try {
         // sessionStorage에서 이미지와 랜드마크 가져오기
         const imageData = sessionStorage.getItem('skinAnalysisImage')
         const landmarksStr = sessionStorage.getItem('skinAnalysisLandmarks')
         
-        if (imageData && landmarksStr) {
-          const landmarks = JSON.parse(landmarksStr)
+        if (imageData) {
+          const landmarks = landmarksStr ? JSON.parse(landmarksStr) : null
           
           console.log('📥 [Report Page] Data loaded:', {
             hasImage: !!imageData,
             imageLength: imageData?.length || 0,
             hasLandmarks: !!landmarks,
             landmarksLength: landmarks?.length || 0,
-            landmarksType: Array.isArray(landmarks) ? 'array' : typeof landmarks,
           })
           
-          // 실제 분석 실행
-          const result = await analyzeSkinCondition(imageData, landmarks)
+          // ============================================
+          // 🎯 DB 설정에 따라 분석 방식 선택
+          // ============================================
+          let result: RealSkinAnalysisResult
+          
+          try {
+            // DB에서 Gemini 설정 조회
+            const geminiSettings = await getGeminiAnalysisSettings()
+            console.log('⚙️ [Report Page] Gemini settings:', geminiSettings)
+            
+            if (geminiSettings.enabled) {
+              // 🤖 Gemini API 분석
+              console.log('🤖 [Report Page] Using Gemini AI analysis...')
+              try {
+                result = await analyzeWithGemini(imageData)
+                console.log('✅ [Report Page] Gemini analysis complete')
+              } catch (geminiError) {
+                console.error('❌ [Report Page] Gemini failed:', geminiError)
+                
+                // 폴백 설정 확인
+                if (geminiSettings.fallback_to_heuristic && landmarks) {
+                  console.log('🔄 [Report Page] Falling back to heuristic analysis...')
+                  result = await analyzeSkinCondition(imageData, landmarks)
+                } else {
+                  throw geminiError
+                }
+              }
+            } else {
+              // 📊 휴리스틱 분석 (기본값)
+              console.log('📊 [Report Page] Using heuristic analysis (Gemini disabled)...')
+              if (landmarks) {
+                result = await analyzeSkinCondition(imageData, landmarks)
+              } else {
+                throw new Error('Landmarks not available for heuristic analysis')
+              }
+            }
+          } catch (settingsError) {
+            // 설정 조회 실패 시 휴리스틱으로 폴백
+            console.warn('⚠️ [Report Page] Settings fetch failed, using heuristic:', settingsError)
+            if (landmarks) {
+              result = await analyzeSkinCondition(imageData, landmarks)
+            } else {
+              throw new Error('No landmarks available')
+            }
+          }
           
           console.log('✅ [Report Page] Analysis result:', result)
           setAnalysisResult(result)
