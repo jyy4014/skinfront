@@ -128,30 +128,31 @@ export async function POST(request: NextRequest) {
     // ============================================
     // 3. DB 저장 (skin_reports 테이블)
     // ============================================
-    const { data: dbData, error: dbError } = await supabase
-      .from('skin_reports')
-      .insert({
-        user_id: userId || null,
-        image_url: imageUrl,
-        total_score: analysisResult.totalScore,
-        primary_concern: analysisResult.primaryConcern,
-        details: analysisResult.details,
-        ai_comment: analysisResult.doctorComment,
-      })
-      .select('id')
-      .single()
+    // userId가 있을 때만 DB에 저장 (RLS 정책상 user_id NOT NULL 필수)
+    let reportId = null
+    
+    if (userId) {
+      const { data: dbData, error: dbError } = await supabase
+        .from('skin_reports')
+        .insert({
+          user_id: userId,
+          image_url: imageUrl,
+          total_score: analysisResult.totalScore,
+          primary_concern: analysisResult.primaryConcern,
+          analysis_result: analysisResult.details, // 컬럼명: analysis_result
+          ai_comment: analysisResult.doctorComment,
+        })
+        .select('id')
+        .single()
 
-    if (dbError) {
-      console.error('DB 저장 에러:', dbError)
-      // DB 저장 실패해도 분석 결과는 반환 (이미지 업로드는 성공했으므로)
-      return NextResponse.json(
-        {
-          ...analysisResult,
-          reportId: null,
-          warning: '분석은 완료되었으나 데이터베이스 저장에 실패했습니다.',
-        },
-        { status: 200 }
-      )
+      if (dbError) {
+        console.error('DB 저장 에러:', dbError)
+        // DB 저장 실패해도 분석 결과는 반환 (이미지 업로드는 성공했으므로)
+      } else {
+        reportId = dbData.id
+      }
+    } else {
+      console.log('비로그인 사용자: DB 저장 생략')
     }
 
     // ============================================
@@ -160,8 +161,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ...analysisResult,
-        reportId: dbData.id,
-        imageUrl: imageUrl,
+        reportId,
+        imageUrl,
+        saved: reportId !== null,
       },
       { status: 200 }
     )

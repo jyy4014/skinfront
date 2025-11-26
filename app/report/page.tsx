@@ -133,7 +133,9 @@ export default function ReportPage() {
               if (landmarks) {
                 result = await analyzeSkinCondition(imageData, landmarks)
               } else {
-                throw new Error('Landmarks not available for heuristic analysis')
+                // 랜드마크 없을 때 기본 분석 결과 사용
+                console.warn('⚠️ [Report Page] No landmarks, using default analysis')
+                result = getDefaultAnalysisResult()
               }
             }
           } catch (settingsError) {
@@ -142,7 +144,9 @@ export default function ReportPage() {
             if (landmarks) {
               result = await analyzeSkinCondition(imageData, landmarks)
             } else {
-              throw new Error('No landmarks available')
+              // 랜드마크 없을 때 기본 분석 결과 사용
+              console.warn('⚠️ [Report Page] No landmarks, using default analysis')
+              result = getDefaultAnalysisResult()
             }
           }
           
