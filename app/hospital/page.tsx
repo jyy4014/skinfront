@@ -10,14 +10,6 @@ import toast from 'react-hot-toast'
 import type { HospitalData, Event } from '@/app/components/RealMap'
 import { formatPrice } from '@/lib/utils'
 
-// OSM Nominatim API 응답 타입
-interface NominatimResult {
-  lat: string
-  lon: string
-  display_name: string
-  type: string
-}
-
 // RealMap 컴포넌트를 SSR 없이 동적으로 로드
 const RealMap = dynamic(() => import('@/app/components/RealMap').then((mod) => mod.default), {
   ssr: false,
@@ -238,29 +230,20 @@ function HospitalPageContent() {
     }
   }, [allPricePins])
 
-  // 🗺️ 지역명 검색 (OSM Nominatim)
+  // 🗺️ 지역명 검색 (Next.js API Route를 통해 OSM Nominatim 호출)
   const searchLocation = useCallback(async (query: string): Promise<[number, number] | null> => {
     try {
-      const encodedQuery = encodeURIComponent(query)
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&countrycodes=kr&limit=1`,
-        {
-          headers: {
-            'Accept-Language': 'ko',
-          },
-        }
-      )
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
 
       if (!response.ok) {
         throw new Error('위치 검색 실패')
       }
 
-      const results: NominatimResult[] = await response.json()
+      const result = await response.json()
 
-      if (results.length > 0) {
-        const { lat, lon, display_name } = results[0]
-        setSearchLocationName(display_name.split(',')[0]) // 첫 번째 부분만 표시
-        return [parseFloat(lat), parseFloat(lon)]
+      if (result.lat && result.lon) {
+        setSearchLocationName(result.display_name)
+        return [result.lat, result.lon]
       }
 
       return null
