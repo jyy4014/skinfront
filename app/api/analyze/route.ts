@@ -145,8 +145,9 @@ export async function POST(request: NextRequest) {
           image_url: imageUrl,
           total_score: analysisResult.totalScore,
           primary_concern: analysisResult.primaryConcern,
-          analysis_result: analysisResult.details, // 컬럼명: analysis_result
-          ai_comment: analysisResult.doctorComment,
+          analysis_result: analysisResult.details,
+          ai_comment: analysisResult.aiComment, // 필드명 변경: doctorComment -> aiComment
+          recommendations: analysisResult.recommendations, // 시술 추천 저장
         })
         .select('id')
         .single()
