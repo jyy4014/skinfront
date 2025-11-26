@@ -126,7 +126,7 @@ function HospitalPageContent() {
         .rpc('get_nearby_hospitals', {
           my_lat: lat,
           my_long: lon,
-          limit_count: 50
+          limit_count: 100
         })
 
       if (rpcError) {
@@ -434,9 +434,9 @@ function HospitalPageContent() {
             <div className="flex items-center gap-3 bg-white shadow-lg rounded-full px-4 py-3">
               <button
                 type="button"
-                onClick={() => router.back()}
+                onClick={() => router.push('/')}
                 className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="뒤로가기"
+                aria-label="홈으로"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-700" />
               </button>

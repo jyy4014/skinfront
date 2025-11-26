@@ -9,7 +9,7 @@ const navItems = [
   { icon: Home, label: '홈', path: '/' },
   { icon: Users, label: '커뮤니티', path: '/community' },
   { icon: null, label: '', path: null }, // 공백 (스캔 버튼 자리)
-  { icon: MapPin, label: '지도', path: '/map' },
+  { icon: MapPin, label: '병원', path: '/hospital' },
   { icon: User, label: '마이', path: '/mypage' },
 ]
 
