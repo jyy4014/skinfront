@@ -1,14 +1,22 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Image as ImageIcon, Tag, FileText, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { ArrowLeft, Image as ImageIcon, Tag, FileText, X, CheckCircle2, Building2 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { getRecentSkinRecords, type SkinAnalysisRecord } from '../../utils/storage'
 import { useToastContext } from '../../components/common/ToastProvider'
 import { formatRecordDate } from '@/lib/utils'
 
 type Category = 'question' | 'review'
+
+// 예약 기반 후기 작성 정보
+interface BookingInfo {
+  bookingId: string
+  hospitalName: string
+  procedure: string
+  visitDate: string
+}
 
 interface AttachedImage {
   id: string
@@ -21,8 +29,10 @@ interface AttachedReport {
   record: SkinAnalysisRecord
 }
 
-export default function WritePage() {
+// useSearchParams를 사용하는 내부 컴포넌트
+function WritePageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { success } = useToastContext()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -32,6 +42,37 @@ export default function WritePage() {
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([])
   const [attachedReport, setAttachedReport] = useState<AttachedReport | null>(null)
   const [tags, setTags] = useState<string[]>([])
+  
+  // 🏥 예약 기반 후기 작성 정보
+  const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null)
+  const [isVerifiedReview, setIsVerifiedReview] = useState(false)
+
+  // URL 쿼리 파라미터에서 예약 정보 추출
+  useEffect(() => {
+    const type = searchParams.get('type')
+    const bookingId = searchParams.get('bookingId')
+    const hospitalName = searchParams.get('hospitalName') || searchParams.get('hospital')
+    const procedure = searchParams.get('procedure') || searchParams.get('treatment')
+    const visitDate = searchParams.get('visitDate')
+
+    // 예약 기반 후기 작성인 경우
+    if (type === 'review' && hospitalName && procedure) {
+      setCategory('review')
+      setIsVerifiedReview(true)
+      setBookingInfo({
+        bookingId: bookingId || '',
+        hospitalName,
+        procedure,
+        visitDate: visitDate || '',
+      })
+
+      // 제목 템플릿 자동완성
+      setTitle(`[후기] ${procedure} 솔직 후기`)
+      
+      // 관련 태그 자동 추가
+      setTags([procedure, hospitalName])
+    }
+  }, [searchParams])
 
   // Textarea 자동 높이 조절
   useEffect(() => {
@@ -111,17 +152,42 @@ export default function WritePage() {
   const handleSubmit = () => {
     if (!isValid) return
 
-    // 실제로는 API 호출
-    console.log('Submit:', {
+    // 등록 데이터 구성
+    const postData = {
       category,
       title,
       content,
       attachedImages,
       attachedReport,
       tags,
-    })
+      // 🏥 인증된 후기 정보
+      isVerified: isVerifiedReview,
+      bookingId: bookingInfo?.bookingId || null,
+      hospitalName: bookingInfo?.hospitalName || null,
+      procedure: bookingInfo?.procedure || null,
+      visitDate: bookingInfo?.visitDate || null,
+    }
 
-    success('글이 등록되었습니다!', 2000)
+    // 실제로는 API 호출
+    console.log('Submit:', postData)
+
+    // 예약 데이터에 reviewWritten 업데이트
+    if (bookingInfo?.bookingId) {
+      try {
+        const stored = localStorage.getItem('reservations')
+        if (stored) {
+          const reservations = JSON.parse(stored)
+          const updated = reservations.map((r: { id: string }) =>
+            r.id === bookingInfo.bookingId ? { ...r, reviewWritten: true } : r
+          )
+          localStorage.setItem('reservations', JSON.stringify(updated))
+        }
+      } catch (error) {
+        console.error('Failed to update reservation:', error)
+      }
+    }
+
+    success(isVerifiedReview ? '✅ 인증된 후기가 등록되었습니다!' : '글이 등록되었습니다!', 2000)
     setTimeout(() => {
       router.push('/community')
     }, 1000)
@@ -167,27 +233,71 @@ export default function WritePage() {
       </header>
 
       <div className="px-4 py-4">
+        {/* 🏥 인증된 후기 카드 */}
+        {isVerifiedReview && bookingInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-gradient-to-r from-[#00FFC2]/10 to-[#00E6B8]/10 border-2 border-[#00FFC2]/50 rounded-xl"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-[#00FFC2]/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-[#00FFC2]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[#00FFC2] font-bold text-sm">🏥 방문 인증됨</span>
+                  <span className="px-2 py-0.5 bg-[#00FFC2]/20 text-[#00FFC2] text-xs font-semibold rounded-full">
+                    ✓ VERIFIED
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <span className="font-semibold">{bookingInfo.hospitalName}</span>
+                  <span className="text-gray-400">·</span>
+                  <span className="text-gray-300">{bookingInfo.procedure}</span>
+                </div>
+                {bookingInfo.visitDate && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    📅 {new Date(bookingInfo.visitDate).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })} 방문
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* 카테고리 선택 */}
         <div className="flex gap-2 mb-6">
           <button
-            onClick={() => setCategory('question')}
+            onClick={() => !isVerifiedReview && setCategory('question')}
+            disabled={isVerifiedReview}
             className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
               category === 'question'
                 ? 'bg-[#00FFC2] text-black'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                : isVerifiedReview
+                  ? 'bg-gray-800/30 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
             }`}
           >
             질문
           </button>
           <button
-            onClick={() => setCategory('review')}
+            onClick={() => !isVerifiedReview && setCategory('review')}
+            disabled={isVerifiedReview}
             className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
               category === 'review'
                 ? 'bg-[#00FFC2] text-black'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                : isVerifiedReview
+                  ? 'bg-gray-800/30 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
             }`}
           >
-            후기
+            후기 {isVerifiedReview && '✓'}
           </button>
         </div>
 
@@ -197,7 +307,7 @@ export default function WritePage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
+            placeholder={isVerifiedReview ? `[후기] ${bookingInfo?.procedure} 솔직 후기` : "제목을 입력하세요"}
             className="w-full px-4 py-4 bg-gray-800/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#00FFC2] transition-colors text-lg font-semibold"
           />
         </div>
@@ -328,6 +438,24 @@ export default function WritePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// 로딩 스피너
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#00FFC2] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
+
+// useSearchParams는 Suspense로 감싸야 함
+export default function WritePage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <WritePageContent />
+    </Suspense>
   )
 }
 

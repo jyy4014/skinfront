@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Calendar, TrendingUp, Settings, Ticket } from 'lucide-react'
+import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Dot } from 'recharts'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -59,6 +59,7 @@ interface Reservation {
   price: string
   status: 'confirmed' | 'completed' | 'cancelled'
   createdAt: string
+  reviewWritten?: boolean // 후기 작성 여부
 }
 
 export default function MyPage() {
@@ -660,23 +661,54 @@ export default function MyPage() {
                         
                         {/* 하단 (Footer - 절취선 아래) */}
                         <div className="px-6 py-4 bg-gray-50">
-                          {/* 바코드 Mock */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="flex-1 h-16 bg-gray-300 rounded flex items-center justify-center">
-                              <div className="flex gap-0.5">
-                                {Array.from({ length: 40 }).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className="w-1 bg-gray-700"
-                                    style={{ height: `${Math.random() * 40 + 20}px` }}
-                                  />
-                                ))}
+                          {isCompleted ? (
+                            // 방문완료: 후기 작성 버튼 또는 작성완료 뱃지
+                            <>
+                              {reservation.reviewWritten ? (
+                                <div className="flex items-center justify-center gap-2 py-3 bg-green-50 rounded-xl border border-green-200">
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                  <span className="text-green-700 font-semibold">후기 작성 완료</span>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const params = new URLSearchParams({
+                                      type: 'review',
+                                      bookingId: reservation.id,
+                                      hospitalName: reservation.hospitalName,
+                                      procedure: reservation.treatment,
+                                      visitDate: reservation.date,
+                                    })
+                                    router.push(`/community/write?${params.toString()}`)
+                                  }}
+                                  className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#00FFC2] to-[#00E6B8] text-black font-bold rounded-xl hover:opacity-90 transition-all"
+                                >
+                                  <PenLine className="w-5 h-5" />
+                                  <span>✍️ 후기 작성하기</span>
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            // 예약확정: 바코드 표시
+                            <>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="flex-1 h-16 bg-gray-300 rounded flex items-center justify-center">
+                                  <div className="flex gap-0.5">
+                                    {Array.from({ length: 40 }).map((_, i) => (
+                                      <div
+                                        key={i}
+                                        className="w-1 bg-gray-700"
+                                        style={{ height: `${Math.random() * 40 + 20}px` }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-500 text-center">
-                            데스크에서 이 바코드를 보여주세요.
-                          </p>
+                              <p className="text-xs text-gray-500 text-center">
+                                데스크에서 이 바코드를 보여주세요.
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
                     )
