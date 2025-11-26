@@ -195,6 +195,16 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
           // 캔버스 초기화
           ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+          // 🔦 조명 검사를 먼저 수행 (얼굴 감지 전에도 가이드 제공)
+          if (!currentMockMode && video) {
+            const lightingCheck = checkLighting(video, true) // 강제 검사
+            if (!lightingCheck.ok && !isScreenLightOn) {
+              setLightingStatus('too-dark')
+              setGuideMessage(lightingCheck.message)
+              setGuideColor('yellow')
+            }
+          }
+
           // 얼굴 감지 및 정렬 검증
           let faceDetected = false
           let faceAligned = false
@@ -208,9 +218,12 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             const screenArea = canvas.width * canvas.height
             const faceAreaRatio = faceArea / screenArea
             
-            // 얼굴이 화면의 20% 이상 차지해야 유효
-            const faceSizeValid = faceAreaRatio >= 0.2
+            // 🎯 조건 완화: 얼굴이 화면의 10% 이상 차지해야 유효 (기존 20% → 10%)
+            const faceSizeValid = faceAreaRatio >= 0.1
             faceDetected = faceSizeValid
+            
+            // 디버그 로그 (개발용)
+            // console.log(`👤 Face detected: ${faceAreaRatio.toFixed(2)} (${faceSizeValid ? 'OK' : 'TOO SMALL'})`)
 
             if (faceDetected) {
               // Mock 모드일 경우 항상 정렬된 것으로 간주, 실제 모드일 경우 검사
@@ -253,15 +266,14 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
                 setFaceAlignment('none')
               }
             } else {
-              // 얼굴이 너무 작으면 감지 실패로 처리
+              // 얼굴이 너무 작으면 - 더 가까이 오라는 가이드 제공
               if (!currentMockMode) {
                 setFaceDetectionStartTime(null)
                 faceDetectionDurationRef.current = 0
                 faceAlignmentStartTimeRef.current = null
                 setFaceAlignment('none')
-                setLightingStatus('ok')
-                setPoseStatus('ok')
-                setGuideMessage('얼굴을 가이드 안에 맞춰주세요')
+                // 🔍 조명 상태 유지하고 거리 가이드 제공
+                setGuideMessage('🔍 조금 더 가까이 오세요')
                 setGuideColor('white')
               }
             }
@@ -269,17 +281,20 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             // 얼굴 감지 상태 업데이트
             setIsFaceDetected(faceDetected)
           } else {
-            // 얼굴이 감지되지 않음
+            // 얼굴이 감지되지 않음 - 위치/조명 가이드 제공
             if (!currentMockMode) {
               setIsFaceDetected(false)
               setFaceDetectionStartTime(null)
               faceDetectionDurationRef.current = 0
               faceAlignmentStartTimeRef.current = null
               setFaceAlignment('none')
-              setLightingStatus('ok')
-              setPoseStatus('ok')
-              setGuideMessage('얼굴을 가이드 안에 맞춰주세요')
-              setGuideColor('white')
+              // 🎯 조명이 어두우면 조명 가이드, 아니면 위치 가이드
+              if (lightingStatus === 'too-dark') {
+                // 조명 메시지는 위에서 이미 설정됨
+              } else {
+                setGuideMessage('👤 얼굴을 화면에 보여주세요')
+                setGuideColor('white')
+              }
             } else {
               // Mock 모드: 얼굴이 감지되지 않아도 정렬된 것으로 처리 (이미지 분석은 계속 진행)
               setIsFaceDetected(true)
