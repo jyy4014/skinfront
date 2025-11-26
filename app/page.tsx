@@ -26,6 +26,20 @@ interface WeatherData {
   humidity: string
 }
 
+// 예약 관련 타입
+interface BookingItem {
+  id: string
+  hospitalName: string
+  treatmentName: string
+  date: string // ISO 형식
+  time: string // "14:00" 형식
+  status: 'confirmed' | 'visited' | 'cancelled'
+  reviewWritten?: boolean
+}
+
+// 홈 화면 상태 타입
+type HomeStatus = 'upcoming' | 'review_needed' | 'normal'
+
 // ==================== 유틸리티 함수 ====================
 
 /**
@@ -106,6 +120,58 @@ function generateWeatherData(): WeatherData {
   const uv = randomCondition === 'sunny' ? '강함' : '보통'
   const humidity = `${Math.floor(Math.random() * 30) + 30}%`
   return { condition: randomCondition, uv, humidity }
+}
+
+/**
+ * 예약 상태 체크 및 홈 상태 결정
+ */
+function checkBookingStatus(): { status: HomeStatus; booking?: BookingItem } {
+  try {
+    const stored = localStorage.getItem('booking_history')
+    if (!stored) return { status: 'normal' }
+
+    const bookings: BookingItem[] = JSON.parse(stored)
+    const now = new Date()
+
+    // 1순위: 미래의 확정된 예약이 있는가?
+    const upcomingBooking = bookings.find((b) => {
+      if (b.status !== 'confirmed') return false
+      const bookingDate = new Date(`${b.date}T${b.time}`)
+      return bookingDate > now
+    })
+
+    if (upcomingBooking) {
+      return { status: 'upcoming', booking: upcomingBooking }
+    }
+
+    // 2순위: 방문 완료했지만 후기 안 쓴 예약이 있는가?
+    const reviewNeededBooking = bookings.find((b) => {
+      if (b.status !== 'visited') return false
+      if (b.reviewWritten) return false
+      const bookingDate = new Date(`${b.date}T${b.time}`)
+      return bookingDate < now
+    })
+
+    if (reviewNeededBooking) {
+      return { status: 'review_needed', booking: reviewNeededBooking }
+    }
+
+    // 기본
+    return { status: 'normal' }
+  } catch {
+    return { status: 'normal' }
+  }
+}
+
+/**
+ * D-Day 계산
+ */
+function getDDay(dateString: string, timeString: string): number {
+  const bookingDate = new Date(`${dateString}T${timeString}`)
+  const now = new Date()
+  const diffTime = bookingDate.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
 }
 
 // ==================== 컴포넌트 ====================
@@ -201,6 +267,10 @@ export default function HomePage() {
   // 루틴 데이터
   const [routineItems, setRoutineItems] = useState<RoutineItem[]>([])
   const [completedRoutines, setCompletedRoutines] = useState<Set<string>>(new Set())
+  
+  // 🏥 예약 상태 (스마트 홈)
+  const [homeStatus, setHomeStatus] = useState<HomeStatus>('normal')
+  const [activeBooking, setActiveBooking] = useState<BookingItem | null>(null)
 
   // ==================== 초기화 로직 ====================
 
@@ -249,6 +319,11 @@ export default function HomePage() {
           setPreviousRecord(records[1] ?? null)
         }
       }
+
+      // 🏥 예약 상태 체크 (스마트 홈)
+      const bookingResult = checkBookingStatus()
+      setHomeStatus(bookingResult.status)
+      setActiveBooking(bookingResult.booking ?? null)
     } catch (error) {
       console.error('Failed to load user data:', error)
       // 기본값 설정
@@ -509,7 +584,101 @@ export default function HomePage() {
           },
         }}
       >
-        {/* 다이내믹 히어로 카드 */}
+        {/* 🏥 Case A: Upcoming - 공항 탑승권 스타일 예약 카드 */}
+        {homeStatus === 'upcoming' && activeBooking && (
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0 },
+            }}
+          >
+            <Link href="/mypage?tab=booking">
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                className="relative rounded-2xl overflow-hidden shadow-lg cursor-pointer"
+              >
+                {/* 배경 그라데이션 */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#00FFC2] via-[#00E6B8] to-blue-400" />
+                
+                {/* 티켓 스타일 장식 (점선) */}
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-8 bg-[#121212] rounded-r-full" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-8 bg-[#121212] rounded-l-full" />
+                
+                {/* 컨텐츠 */}
+                <div className="relative px-8 py-5 flex items-center justify-between">
+                  {/* 좌측: D-Day & 병원명 */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-4xl font-black text-black/90">
+                        D-{getDDay(activeBooking.date, activeBooking.time)}
+                      </div>
+                      <div className="text-xs text-black/70 font-medium mt-1">
+                        {new Date(activeBooking.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="w-px h-12 bg-black/20" />
+                    <div>
+                      <div className="text-lg font-bold text-black flex items-center gap-2">
+                        🏥 {activeBooking.hospitalName}
+                      </div>
+                      <div className="text-sm text-black/70">
+                        {activeBooking.treatmentName}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 우측: 시간 & 버튼 */}
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-black">{activeBooking.time}</div>
+                    <div className="text-xs text-black/60 flex items-center gap-1 justify-end mt-1">
+                      티켓 보기 <ChevronRight className="w-3 h-3" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* ✨ Case B: Review Needed - 후기 요청 카드 */}
+        {homeStatus === 'review_needed' && activeBooking && (
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0 },
+            }}
+          >
+            <Link href={`/community/write?hospital=${encodeURIComponent(activeBooking.hospitalName)}&treatment=${encodeURIComponent(activeBooking.treatmentName)}`}>
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                className="relative rounded-2xl overflow-hidden shadow-lg cursor-pointer bg-white border-2 border-[#00FFC2]"
+              >
+                {/* 말풍선 꼬리 장식 */}
+                <div className="absolute -bottom-2 left-8 w-4 h-4 bg-white border-r-2 border-b-2 border-[#00FFC2] transform rotate-45" />
+                
+                {/* 컨텐츠 */}
+                <div className="relative px-6 py-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-3xl">✨</div>
+                    <div>
+                      <div className="text-black font-bold text-lg">
+                        시술은 만족스러우셨나요?
+                      </div>
+                      <div className="text-gray-500 text-sm mt-0.5">
+                        {activeBooking.hospitalName} · {activeBooking.treatmentName}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#00FFC2] font-bold">
+                    솔직 후기 남기기 ✍️
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* 다이내믹 히어로 카드 - 예약 카드가 없거나 Secondary로 표시 */}
         <motion.div
           variants={{
             hidden: { opacity: 0, y: 20 },
@@ -517,10 +686,12 @@ export default function HomePage() {
           }}
         >
           <div
-            className={`rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden border-2 shadow-lg ${heroStyle.bgGradient} ${heroStyle.borderColor}`}
+            className={`rounded-2xl backdrop-blur-sm relative overflow-hidden border-2 shadow-lg ${heroStyle.bgGradient} ${heroStyle.borderColor} ${
+              homeStatus !== 'normal' ? 'p-4' : 'p-6'
+            }`}
           >
             {/* 프리미엄 라벨 */}
-            {isPremium && latestRecord && (
+            {isPremium && latestRecord && homeStatus === 'normal' && (
               <div className="absolute top-3 right-3 px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded-full">
                 <p className="text-yellow-500 text-xs font-semibold flex items-center gap-1">
                   ⚡ 광고 없이 무제한 분석 중
@@ -530,40 +701,48 @@ export default function HomePage() {
 
             {latestRecord ? (
               <>
-                {/* 비교 카드: 남들 vs 나 */}
+                {/* 비교 카드: 남들 vs 나 - 예약 카드가 있으면 축소 */}
                 {heroStyle.showComparison && (
-                  <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div className={`grid grid-cols-2 gap-3 ${homeStatus !== 'normal' ? 'mb-2' : 'mb-4'}`}>
                     {/* 좌측: 나의 현재 점수 */}
-                    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/50">
-                      <p className="text-gray-400 text-xs mb-2">나의 현재 점수</p>
-                      <p className="text-2xl font-bold text-white mb-1">{heroStyle.userScore}점</p>
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#00FFC2] rounded-full transition-all duration-500"
-                          style={{ width: `${heroStyle.userScore}%` }}
-                        />
-                      </div>
+                    <div className={`bg-gray-900/50 rounded-xl border border-gray-700/50 ${homeStatus !== 'normal' ? 'p-3' : 'p-4'}`}>
+                      <p className="text-gray-400 text-xs mb-1">나의 현재 점수</p>
+                      <p className={`font-bold text-white ${homeStatus !== 'normal' ? 'text-xl' : 'text-2xl'}`}>{heroStyle.userScore}점</p>
+                      {homeStatus === 'normal' && (
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-[#00FFC2] rounded-full transition-all duration-500"
+                            style={{ width: `${heroStyle.userScore}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                     {/* 우측: 상위 10% 평균 */}
-                    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/50">
-                      <p className="text-gray-400 text-xs mb-2">상위 10% 평균</p>
-                      <p className="text-2xl font-bold text-[#00FFC2] mb-1">{heroStyle.peerScore}점</p>
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#00FFC2] rounded-full transition-all duration-500"
-                          style={{ width: `${heroStyle.peerScore}%` }}
-                        />
-                      </div>
+                    <div className={`bg-gray-900/50 rounded-xl border border-gray-700/50 ${homeStatus !== 'normal' ? 'p-3' : 'p-4'}`}>
+                      <p className="text-gray-400 text-xs mb-1">상위 10% 평균</p>
+                      <p className={`font-bold text-[#00FFC2] ${homeStatus !== 'normal' ? 'text-xl' : 'text-2xl'}`}>{heroStyle.peerScore}점</p>
+                      {homeStatus === 'normal' && (
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-[#00FFC2] rounded-full transition-all duration-500"
+                            style={{ width: `${heroStyle.peerScore}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
-                <p className="text-gray-400 text-xs mb-3">
-                  마지막 진단: {getDaysAgo(latestRecord.date)}일 전
-                </p>
-                <p className="text-white text-sm font-medium mb-4 text-center">
-                  {heroStyle.message}
-                </p>
+                {homeStatus === 'normal' && (
+                  <>
+                    <p className="text-gray-400 text-xs mb-3">
+                      마지막 진단: {getDaysAgo(latestRecord.date)}일 전
+                    </p>
+                    <p className="text-white text-sm font-medium mb-4 text-center">
+                      {heroStyle.message}
+                    </p>
+                  </>
+                )}
               </>
             ) : (
               <p className="text-gray-300 text-base mb-4">{heroStyle.message}</p>
@@ -573,7 +752,9 @@ export default function HomePage() {
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={heroStyle.buttonAction}
-              className={`w-full px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${heroStyle.buttonColor}`}
+              className={`w-full rounded-xl font-bold transition-all shadow-lg ${heroStyle.buttonColor} ${
+                homeStatus !== 'normal' ? 'px-4 py-2 text-sm' : 'px-6 py-3'
+              }`}
             >
               {heroStyle.buttonText}
             </motion.button>
