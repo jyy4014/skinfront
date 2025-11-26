@@ -100,6 +100,33 @@ export async function isGeminiEnabled(): Promise<boolean> {
 }
 
 /**
+ * 카메라 디버그 설정 타입
+ */
+export interface CameraDebugSettings {
+  enabled: boolean // 디버그 오버레이 표시 여부
+}
+
+/**
+ * 카메라 디버그 설정 조회
+ * @returns enabled=true면 디버그 오버레이 표시
+ */
+export async function getCameraDebugSettings(): Promise<CameraDebugSettings> {
+  const defaultSettings: CameraDebugSettings = {
+    enabled: false, // 기본값: 디버그 오버레이 숨김
+  }
+
+  return getSettingWithCache('show_camera_debug', defaultSettings)
+}
+
+/**
+ * 카메라 디버그 활성화 여부만 빠르게 확인
+ */
+export async function isCameraDebugEnabled(): Promise<boolean> {
+  const settings = await getCameraDebugSettings()
+  return settings.enabled
+}
+
+/**
  * 설정 캐시 초기화 (테스트/디버깅용)
  */
 export function clearSettingsCache(): void {

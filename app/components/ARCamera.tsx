@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Webcam from 'react-webcam'
 import { motion, useAnimation, AnimatePresence } from 'framer-motion'
 import type { FaceMesh as FaceMeshType, NormalizedLandmark } from '@mediapipe/face_mesh'
+import { isCameraDebugEnabled } from '@/lib/appSettings'
 
 interface ARCameraProps {
   className?: string
@@ -81,7 +82,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     pitchValue: 0, // 상하 기울기 값 (-8~18 = OK, 음수=고개들기, 양수=숙이기)
     rollAngle: 0, // 머리 기울기 (±8° = OK)
   })
-  const [showDebugOverlay, setShowDebugOverlay] = useState(true) // 디버그 오버레이 표시 여부
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false) // 디버그 오버레이 표시 여부 (DB에서 로드)
 
   // 🧹 메모리 누수 방지: 컴포넌트 언마운트 시 전체 리소스 정리
   useEffect(() => {
@@ -149,6 +150,20 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
 
       console.log('🧹 [ARCamera] Cleanup complete!')
     }
+  }, [])
+
+  // 🐛 DB에서 디버그 설정 로드
+  useEffect(() => {
+    const loadDebugSettings = async () => {
+      try {
+        const enabled = await isCameraDebugEnabled()
+        setShowDebugOverlay(enabled)
+        console.log(`🐛 [ARCamera] Debug overlay: ${enabled ? 'ON' : 'OFF'} (from DB)`)
+      } catch (error) {
+        console.warn('🐛 [ARCamera] Failed to load debug settings:', error)
+      }
+    }
+    loadDebugSettings()
   }, [])
 
   // FaceMesh 초기화 (isReady가 true일 때만)
