@@ -238,8 +238,10 @@ export default function ReportPage() {
 
   // 분석 결과가 없으면 로딩 표시
   if (isAnalyzing || !analysisResult || !recommendedTreatment) {
-    // 다음 광고까지 남은 횟수 계산
-    const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
+    // 다음 광고까지 남은 횟수 계산 (SSR 안전)
+    const analysisCount = typeof window !== 'undefined' 
+      ? parseInt(localStorage.getItem('analysis_count') || '0', 10)
+      : 0
     const nextAdAt = Math.ceil((analysisCount + 1) / 3) * 3
     const remainingCount = Math.max(0, nextAdAt - analysisCount - 1)
     

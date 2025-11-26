@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
+import { getScoreColor, getGradeColor, formatReservationDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 // Supabase DB에서 가져온 분석 기록 타입

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { ArrowLeft, Search, Phone, Calendar, MapPin, Star } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import ReservationModal from '@/app/components/hospital/ReservationModal'
 import toast from 'react-hot-toast'
-import type { HospitalData } from '@/app/components/RealMap'
+import type { HospitalData, Event } from '@/app/components/RealMap'
 import { formatPrice } from '@/lib/utils'
 
 // RealMap 컴포넌트를 SSR 없이 동적으로 로드
@@ -20,7 +20,8 @@ const RealMap = dynamic(() => import('@/app/components/RealMap').then((mod) => m
   ),
 })
 
-export default function HospitalPage() {
+// useSearchParams를 사용하는 컴포넌트를 Suspense로 감싸기 위해 분리
+function HospitalPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
@@ -293,8 +294,8 @@ export default function HospitalPage() {
 
           {/* 병원 리스트 아이템 */}
           {pricePins.map((pin) => {
-            const mainEvent = pin.events.find((e) => e.isMain) || pin.events[0]
-            const otherEvents = pin.events.filter((e) => !e.isMain)
+            const mainEvent = pin.events.find((e: Event) => e.isMain) || pin.events[0]
+            const otherEvents = pin.events.filter((e: Event) => !e.isMain)
 
             return (
               <div
@@ -375,7 +376,7 @@ export default function HospitalPage() {
                     className="overflow-hidden bg-gray-800/50"
                   >
                     <div className="p-3 space-y-2">
-                      {otherEvents.map((event, eventIndex) => (
+                      {otherEvents.map((event: Event, eventIndex: number) => (
                         <div
                           key={eventIndex}
                           className="flex flex-row justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-200"
@@ -440,3 +441,15 @@ export default function HospitalPage() {
   )
 }
 
+// Suspense boundary로 감싸는 wrapper component
+export default function HospitalPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#212121] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#00FFC2] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <HospitalPageContent />
+    </Suspense>
+  )
+}

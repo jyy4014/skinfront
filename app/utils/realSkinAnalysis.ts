@@ -113,7 +113,7 @@ function extractPixelSamples(
  */
 function getCenterPoint(
   landmarks: any[],
-  indices: number[],
+  indices: readonly number[],
   width: number,
   height: number
 ): { x: number; y: number } | null {

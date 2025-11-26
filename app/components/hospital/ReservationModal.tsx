@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { X, Calendar, FileText, CheckCircle2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getRecentSkinRecords, type SkinAnalysisRecord } from '@/app/utils/storage'
+import { formatRecordDate } from '@/lib/utils'
 import toast, { Toaster } from 'react-hot-toast'
 import PremiumCongratsModal from './PremiumCongratsModal'
 

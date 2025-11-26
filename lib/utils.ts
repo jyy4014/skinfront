@@ -106,3 +106,5 @@ export function getScoreColor(score: number): string {
   return 'text-red-400'
 }
 
+
+

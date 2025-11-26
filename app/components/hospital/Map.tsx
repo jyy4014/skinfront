@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { formatPrice } from '@/lib/utils'
 
 // Leaflet 기본 아이콘 경로 설정 (SSR 이슈 해결)
 if (typeof window !== 'undefined') {

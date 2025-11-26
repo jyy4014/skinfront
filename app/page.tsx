@@ -636,26 +636,32 @@ export default function HomePage() {
               { id: 'ingredient', icon: FlaskConical, title: '성분분석', subtitle: '화장품 궁합 보기', href: '#', color: 'from-orange-500 to-red-500' },
             ].map((item) => {
               const Icon = item.icon
-              const Component = item.href === '#' ? 'button' : Link
-              const props = item.href === '#' ? {} : { href: item.href }
+              const content = (
+                <>
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold text-sm mb-0.5">{item.title}</h3>
+                    <p className="text-gray-400 text-xs truncate">{item.subtitle}</p>
+                  </div>
+                </>
+              )
               
               return (
                 <motion.div
                   key={item.id}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Component
-                    {...props}
-                    className="flex items-center gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition-colors border border-gray-700/50 text-left"
-                  >
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm mb-0.5">{item.title}</h3>
-                      <p className="text-gray-400 text-xs truncate">{item.subtitle}</p>
-                    </div>
-                  </Component>
+                  {item.href === '#' ? (
+                    <button className="flex items-center gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition-colors border border-gray-700/50 text-left w-full">
+                      {content}
+                    </button>
+                  ) : (
+                    <Link href={item.href} className="flex items-center gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition-colors border border-gray-700/50 text-left">
+                      {content}
+                    </Link>
+                  )}
                 </motion.div>
               )
             })}

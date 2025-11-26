@@ -79,3 +79,5 @@ export const SKIN_ANALYSIS_PROMPT = `당신은 15년차 피부과 전문의이�
 
 중요: JSON만 반환하고 다른 텍스트는 포함하지 마세요.`
 
+
+
