@@ -55,6 +55,9 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   const lastLightingCheckRef = useRef<number>(0) // 마지막 조명 검사 시간 (성능 최적화)
   const [isScreenLightOn, setIsScreenLightOn] = useState(false) // 화면 조명 상태
   
+  // 🎯 햅틱 피드백 상태
+  const lastHapticTriggerRef = useRef<string | null>(null) // 마지막 햅틱 트리거 종류
+  
   // 🎯 핸즈프리 오토 캡처 상태
   const lockOnStartTimeRef = useRef<number | null>(null) // 락온 시작 시간
   const [lockOnProgress, setLockOnProgress] = useState(0) // 락온 진행률 (0-100)
@@ -1410,6 +1413,40 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     }
   }, [scanningStage])
 
+  // 🎯 햅틱 피드백: 조건이 모두 맞았을 때 진동 (모바일 지원 시)
+  useEffect(() => {
+    if (scanningStage !== 'idle') return
+    
+    const allConditionsMet = 
+      debugInfo.faceDetected &&
+      debugInfo.brightness >= 80 &&
+      debugInfo.poseOk &&
+      Math.abs(debugInfo.centerOffsetX) <= 0.08 &&
+      Math.abs(debugInfo.glabellaY - 0.42) <= 0.08 &&
+      debugInfo.faceWidthRatio >= 60 &&
+      debugInfo.faceWidthRatio <= 85
+    
+    // 모든 조건이 맞았을 때 한 번만 햅틱 피드백
+    if (allConditionsMet && lastHapticTriggerRef.current !== 'perfect') {
+      lastHapticTriggerRef.current = 'perfect'
+      // 모바일 진동 API 호출
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([50, 30, 50]) // 짧은 진동 2번 (딸깍딸깍)
+      }
+    } else if (!allConditionsMet) {
+      lastHapticTriggerRef.current = null
+    }
+    
+    // 수평이 맞았을 때도 진동 (Roll < 8°)
+    if (debugInfo.rollAngle <= 8 && lastHapticTriggerRef.current !== 'level' && lastHapticTriggerRef.current !== 'perfect') {
+      // 수평만 맞춘 경우 (전체 조건은 아직 미충족)
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(30) // 아주 짧은 진동 1번
+      }
+      lastHapticTriggerRef.current = 'level'
+    }
+  }, [debugInfo, scanningStage])
+
   // 스캔 진행률 업데이트 (기존 로직 제거 - 레이저 바 애니메이션으로 대체)
   // 주석: scanningStage를 사용하므로 scanStatus는 더 이상 사용하지 않음
 
@@ -1756,6 +1793,57 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
                 )}
               </svg>
               
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* 🎯 Visual Aid #2: 수평계 (Leveler) - 좌우 막대 */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {scanningStage === 'idle' && (
+                <>
+                  {/* 왼쪽 수평 막대 */}
+                  <div 
+                    className="absolute left-[-20px] top-1/2 w-4 h-1 rounded-full transition-all duration-200"
+                    style={{
+                      backgroundColor: debugInfo.rollAngle <= 8 
+                        ? '#00FFC2' 
+                        : debugInfo.rollAngle <= 15 
+                        ? '#FBBF24' 
+                        : '#EF4444',
+                      transform: `translateY(-50%) rotate(${Math.min(debugInfo.rollAngle, 20) * (debugInfo.pitchValue < 0 ? -1 : 1)}deg)`,
+                      boxShadow: debugInfo.rollAngle <= 8 
+                        ? '0 0 8px rgba(0, 255, 194, 0.6)' 
+                        : 'none',
+                    }}
+                  />
+                  {/* 오른쪽 수평 막대 */}
+                  <div 
+                    className="absolute right-[-20px] top-1/2 w-4 h-1 rounded-full transition-all duration-200"
+                    style={{
+                      backgroundColor: debugInfo.rollAngle <= 8 
+                        ? '#00FFC2' 
+                        : debugInfo.rollAngle <= 15 
+                        ? '#FBBF24' 
+                        : '#EF4444',
+                      transform: `translateY(-50%) rotate(${Math.min(debugInfo.rollAngle, 20) * (debugInfo.pitchValue < 0 ? -1 : 1)}deg)`,
+                      boxShadow: debugInfo.rollAngle <= 8 
+                        ? '0 0 8px rgba(0, 255, 194, 0.6)' 
+                        : 'none',
+                    }}
+                  />
+                  {/* 수평 아이콘 (중앙 상단) */}
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1">
+                    <div 
+                      className="w-6 h-0.5 rounded-full transition-all duration-200"
+                      style={{
+                        backgroundColor: debugInfo.rollAngle <= 8 ? '#00FFC2' : '#6B7280',
+                        transform: `rotate(${Math.min(debugInfo.rollAngle, 20) * (debugInfo.pitchValue < 0 ? -1 : 1)}deg)`,
+                      }}
+                    />
+                    <span className={`text-[10px] font-mono ${debugInfo.rollAngle <= 8 ? 'text-[#00FFC2]' : 'text-gray-400'}`}>
+                      {debugInfo.rollAngle.toFixed(1)}°
+                    </span>
+                  </div>
+                </>
+              )}
+              
               {/* 카운트다운 숫자 표시 (중앙) */}
               <AnimatePresence>
                 {countdownText && (
@@ -1793,8 +1881,59 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
                 }}
               />
               
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* 🎯 Visual Aid #3: 거리 게이지 (Distance Bar) */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {scanningStage === 'idle' && (
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-[80%]">
+                  {/* 거리 라벨 */}
+                  <div className="flex justify-between text-[9px] text-gray-400 mb-1 px-1">
+                    <span>🔍 멀리</span>
+                    <span className={debugInfo.faceWidthRatio >= 60 && debugInfo.faceWidthRatio <= 85 ? 'text-[#00FFC2] font-bold' : ''}>
+                      {debugInfo.faceWidthRatio}%
+                    </span>
+                    <span>가까이 ✋</span>
+                  </div>
+                  {/* 게이지 바 배경 */}
+                  <div className="relative w-full h-2 bg-gray-800/60 rounded-full overflow-hidden">
+                    {/* 목표 범위 표시 (60~85%) */}
+                    <div 
+                      className="absolute h-full bg-[#00FFC2]/20 rounded-full"
+                      style={{ left: '60%', width: '25%' }}
+                    />
+                    {/* 현재 거리 표시 바 */}
+                    <div 
+                      className="absolute left-0 h-full rounded-full transition-all duration-200"
+                      style={{
+                        width: `${Math.min(debugInfo.faceWidthRatio, 100)}%`,
+                        backgroundColor: 
+                          debugInfo.faceWidthRatio < 60 
+                            ? '#EF4444' // 너무 멀리 - 빨간색
+                            : debugInfo.faceWidthRatio > 85 
+                            ? '#EF4444' // 너무 가까이 - 빨간색
+                            : '#00FFC2', // 적정 거리 - 민트색
+                        boxShadow: 
+                          debugInfo.faceWidthRatio >= 60 && debugInfo.faceWidthRatio <= 85
+                            ? '0 0 10px rgba(0, 255, 194, 0.6)'
+                            : '0 0 10px rgba(239, 68, 68, 0.4)',
+                      }}
+                    />
+                    {/* 60% 마커 */}
+                    <div 
+                      className="absolute top-0 bottom-0 w-0.5 bg-white/40"
+                      style={{ left: '60%' }}
+                    />
+                    {/* 85% 마커 */}
+                    <div 
+                      className="absolute top-0 bottom-0 w-0.5 bg-white/40"
+                      style={{ left: '85%' }}
+                    />
+                  </div>
+                </div>
+              )}
+              
               {/* 가이드라인 바깥쪽 하단 텍스트 */}
-              <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-center w-full">
+              <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-center w-full">
                 <p 
                   className={`text-lg font-bold transition-colors duration-300 ${
                     guideColor === 'mint' || (faceAlignment === 'aligned' || isMockMode)
@@ -1816,6 +1955,120 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
               </div>
             </div>
           </div>
+          
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* 🎯 Visual Aid #1: 3D 자세 가이드 (Pose Indicator) - 우측 상단 */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {scanningStage === 'idle' && debugInfo.faceDetected && (
+            <div className="absolute top-4 right-4 z-30">
+              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-gray-700">
+                {/* 얼굴 아이콘 SVG - 실시간 회전 */}
+                <div className="relative w-16 h-20">
+                  <svg
+                    viewBox="0 0 64 80"
+                    className="w-full h-full transition-transform duration-150"
+                    style={{
+                      transform: `
+                        perspective(200px)
+                        rotateY(${(debugInfo.yawRatio - 1) * 50}deg)
+                        rotateX(${-debugInfo.pitchValue * 2}deg)
+                        rotateZ(${debugInfo.rollAngle * (debugInfo.pitchValue < 0 ? -1 : 1)}deg)
+                      `,
+                    }}
+                  >
+                    {/* 얼굴 윤곽 */}
+                    <ellipse
+                      cx="32"
+                      cy="40"
+                      rx="28"
+                      ry="35"
+                      fill="none"
+                      stroke={debugInfo.poseOk ? '#00FFC2' : debugInfo.rollAngle > 15 || debugInfo.yawRatio < 0.7 || debugInfo.yawRatio > 1.4 ? '#EF4444' : '#FBBF24'}
+                      strokeWidth="2"
+                      style={{
+                        filter: debugInfo.poseOk ? 'drop-shadow(0 0 6px rgba(0, 255, 194, 0.6))' : 'none',
+                      }}
+                    />
+                    {/* 눈 (왼쪽) */}
+                    <ellipse
+                      cx="20"
+                      cy="35"
+                      rx="5"
+                      ry="3"
+                      fill={debugInfo.poseOk ? '#00FFC2' : '#9CA3AF'}
+                    />
+                    {/* 눈 (오른쪽) */}
+                    <ellipse
+                      cx="44"
+                      cy="35"
+                      rx="5"
+                      ry="3"
+                      fill={debugInfo.poseOk ? '#00FFC2' : '#9CA3AF'}
+                    />
+                    {/* 코 */}
+                    <path
+                      d="M32 38 L30 50 L34 50 Z"
+                      fill={debugInfo.poseOk ? '#00FFC2' : '#9CA3AF'}
+                    />
+                    {/* 입 */}
+                    <path
+                      d="M24 58 Q32 64 40 58"
+                      fill="none"
+                      stroke={debugInfo.poseOk ? '#00FFC2' : '#9CA3AF'}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    {/* 정면 방향 화살표 (목표) */}
+                    <circle
+                      cx="32"
+                      cy="15"
+                      r="3"
+                      fill={debugInfo.poseOk ? '#00FFC2' : '#6B7280'}
+                    />
+                    <line
+                      x1="32"
+                      y1="18"
+                      x2="32"
+                      y2="25"
+                      stroke={debugInfo.poseOk ? '#00FFC2' : '#6B7280'}
+                      strokeWidth="2"
+                    />
+                  </svg>
+                  
+                  {/* 상태 표시 */}
+                  <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[9px] font-bold ${
+                    debugInfo.poseOk 
+                      ? 'bg-[#00FFC2]/20 text-[#00FFC2]' 
+                      : 'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {debugInfo.poseOk ? '✓ OK' : '조정'}
+                  </div>
+                </div>
+                
+                {/* 축별 상태 표시 */}
+                <div className="mt-2 space-y-1 text-[9px]">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">좌우</span>
+                    <span className={debugInfo.yawRatio >= 0.8 && debugInfo.yawRatio <= 1.25 ? 'text-[#00FFC2]' : 'text-yellow-400'}>
+                      {debugInfo.yawRatio.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">기울기</span>
+                    <span className={debugInfo.rollAngle <= 8 ? 'text-[#00FFC2]' : 'text-yellow-400'}>
+                      {debugInfo.rollAngle.toFixed(1)}°
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">상하</span>
+                    <span className={debugInfo.pitchValue >= -8 && debugInfo.pitchValue <= 18 ? 'text-[#00FFC2]' : 'text-yellow-400'}>
+                      {debugInfo.pitchValue > 0 ? '+' : ''}{debugInfo.pitchValue.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
