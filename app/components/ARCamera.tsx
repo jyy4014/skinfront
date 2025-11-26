@@ -536,7 +536,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     const guideWidth = screenWidth * 0.7
     const guideHeight = screenHeight * 0.55
     const guideCenterX = screenWidth / 2
-    const guideCenterY = screenHeight * 0.4 // 화면 정중앙보다 약간 위쪽 (눈높이)
+    // 🎯 High Angle Correction: 가이드라인을 더 위로 올림 (눈높이 촬영 유도)
+    const guideCenterY = screenHeight * 0.35 // 화면 상단 35% 위치 (기존 40%)
 
     // 3단계 검증 시스템 (우선순위 순서대로 체크)
 
@@ -568,29 +569,56 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     setPoseStatus('ok')
 
     // 3단계: 거리 및 위치 검사 (우선순위 3위)
-    const noseTipIndex = 1
-    if (noseTipIndex >= landmarks.length) {
+    // 🎯 High Angle Correction: 코끝(1) 대신 미간/눈썹 사이(168)를 기준으로 사용
+    // 사람은 본능적으로 눈을 화면 상단에 맞추려 하기 때문
+    const GLABELLA_INDEX = 168 // 미간 (눈썹 사이)
+    const NOSE_BRIDGE_INDEX = 6 // 콧대 중앙 (백업용)
+    
+    if (GLABELLA_INDEX >= landmarks.length) {
       setGuideMessage('얼굴을 가이드 안에 맞춰주세요')
       setGuideColor('white')
       return { aligned: false, message: '얼굴을 가이드 안에 맞춰주세요', color: 'white' }
     }
 
-    const noseTip = landmarks[noseTipIndex]
-    const noseTipX = noseTip.x * screenWidth
-    const noseTipY = noseTip.y * screenHeight
+    // 미간 좌표를 기준점으로 사용
+    const glabella = landmarks[GLABELLA_INDEX]
+    const referenceX = glabella.x * screenWidth
+    const referenceY = glabella.y * screenHeight
+    
+    // 정규화된 Y 좌표 (0 = 상단, 1 = 하단)
+    const normalizedY = glabella.y
 
-    // 위치 판별 (Centering) - 코끝이 화면 중앙에서 ±10% 오차 범위를 벗어나는지 검사
-    const centerXDiff = Math.abs(noseTipX - guideCenterX)
-    const centerYDiff = Math.abs(noseTipY - guideCenterY)
-    // 🔧 완화: 10% -> 20% 허용 오차
-    const maxCenterDiffX = screenWidth * 0.2 // 20% 허용 오차
-    const maxCenterDiffY = screenHeight * 0.2 // 20% 허용 오차
+    // 📱 핸드폰 높이 교정 피드백
+    // 미간이 화면의 0.35~0.55 범위에 있어야 정상 (눈높이 촬영)
+    const idealYMin = 0.35
+    const idealYMax = 0.55
+    
+    if (normalizedY > idealYMax) {
+      // 미간이 너무 아래 = 폰을 너무 낮게 들고 있음
+      setGuideMessage('📱 핸드폰을 눈높이로 들어주세요')
+      setGuideColor('yellow')
+      return { aligned: false, message: '📱 핸드폰을 눈높이로 들어주세요', color: 'yellow' }
+    }
+    
+    if (normalizedY < idealYMin) {
+      // 미간이 너무 위 = 폰을 너무 높게 들고 있음
+      setGuideMessage('👇 핸드폰을 조금만 내려주세요')
+      setGuideColor('yellow')
+      return { aligned: false, message: '👇 핸드폰을 조금만 내려주세요', color: 'yellow' }
+    }
 
-    const isCentered = centerXDiff <= maxCenterDiffX && centerYDiff <= maxCenterDiffY
+    // X축 위치 판별 (좌우 중앙)
+    const centerXDiff = Math.abs(referenceX - guideCenterX)
+    // 🔧 완화: 20% 허용 오차
+    const maxCenterDiffX = screenWidth * 0.2
+    const isCenteredX = centerXDiff <= maxCenterDiffX
     
     // 정규화된 오프셋 (디버그용)
-    const normalizedOffsetX = (noseTipX - guideCenterX) / screenWidth
-    const normalizedOffsetY = (noseTipY - guideCenterY) / screenHeight
+    const normalizedOffsetX = (referenceX - guideCenterX) / screenWidth
+    const normalizedOffsetY = normalizedY - 0.45 // 0.45를 기준으로 오프셋 계산
+    
+    // X축이 벗어난 경우에만 체크 (Y축은 위에서 이미 체크함)
+    const isCentered = isCenteredX
 
     // 거리 판별 (Distance) - 얼굴 너비가 가이드라인 너비의 비율
     const faceWidthRatio = faceBounds.width / guideWidth
@@ -610,13 +638,13 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       centerOffsetY: Math.round(normalizedOffsetY * 100) / 100,
     }))
 
-    // 위치가 벗어난 경우 - 구체적인 방향 안내
+    // X축 위치가 벗어난 경우 - 좌우 방향 안내 (Y축은 위에서 핸드폰 높이로 체크함)
     if (!isCentered) {
-      const direction = normalizedOffsetX > 0.05 ? '왼쪽으로' : normalizedOffsetX < -0.05 ? '오른쪽으로' : 
-                        normalizedOffsetY > 0.05 ? '위로' : '아래로'
-      setGuideMessage(`🎯 ${direction} 조금만! (오차: ${Math.round(Math.max(Math.abs(normalizedOffsetX), Math.abs(normalizedOffsetY)) * 100)}%)`)
+      // 미러링된 화면이므로 방향 반전
+      const direction = normalizedOffsetX > 0.05 ? '👈 왼쪽으로' : '👉 오른쪽으로'
+      setGuideMessage(`${direction} 조금만! (오차: ${Math.round(Math.abs(normalizedOffsetX) * 100)}%)`)
       setGuideColor('yellow')
-      return { aligned: false, message: `🎯 ${direction} 조금만!`, color: 'yellow' }
+      return { aligned: false, message: `${direction} 조금만!`, color: 'yellow' }
     }
 
     // 거리가 너무 먼 경우 - 현재 비율 표시
@@ -1597,8 +1625,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             />
           </svg>
           
-          {/* 가이드라인 컨테이너 */}
-          <div className="absolute inset-0 flex items-start justify-center pointer-events-none z-16 pt-[15%]">
+          {/* 가이드라인 컨테이너 - 📱 High Angle Correction: 가이드를 더 위로 배치 */}
+          <div className="absolute inset-0 flex items-start justify-center pointer-events-none z-16 pt-[8%]">
             {/* 세로로 긴 타원형 가이드라인 (화면 너비의 70%, 높이의 55%) */}
             <div className="relative w-[70%] aspect-[3/4]">
               {/* SVG 타원형 가이드라인 + 진행률 게이지 */}
