@@ -20,7 +20,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'pkce', // PKCE 플로우 강제 (더 안전하고 서버에서 처리 가능)
+    flowType: 'implicit', // Implicit 플로우로 변경 (PKCE가 제대로 작동하지 않음)
   },
 })
 
