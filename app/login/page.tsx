@@ -29,10 +29,23 @@ export default function LoginPage() {
 
     setIsLoading(true)
 
+    // 환경에 따른 redirect URL 설정
+    const getRedirectUrl = () => {
+      const currentOrigin = window.location.origin
+
+      // 로컬 개발 환경에서는 localhost 유지
+      if (currentOrigin.includes('localhost')) {
+        return `${currentOrigin}/auth/callback`
+      }
+
+      // 프로덕션 환경에서는 현재 도메인 사용
+      return `${currentOrigin}/auth/callback`
+    }
+
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: getRedirectUrl(),
       },
     })
 
