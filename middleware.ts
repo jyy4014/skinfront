@@ -17,7 +17,8 @@ export async function middleware(req: NextRequest) {
   // - /auth/callback: 소셜 로그인 인증 처리 경로 (절대 막으면 안 됨)
   // - /intro: 온보딩 페이지 (비로그인 유저의 진입점)
   // - /login: 로그인 페이지
-  const publicPaths = ['/intro', '/login', '/auth/callback'];
+  // - /onboarding: 온보딩 완료 페이지 (로그인된 유저의 진입점)
+  const publicPaths = ['/intro', '/login', '/auth/callback', '/onboarding'];
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
   const isStaticAsset = pathname.startsWith('/_next') || pathname.includes('.');
 
