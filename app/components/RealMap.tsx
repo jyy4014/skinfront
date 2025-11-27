@@ -101,8 +101,8 @@ const createCustomClusterIcon = (cluster: any): L.DivIcon => {
       <!-- 메인 클러스터 -->
       <div class="relative bg-gradient-to-br from-[#121212] to-[#1A2333] border-2 border-[#00FFC2] rounded-full flex items-center justify-content-center shadow-2xl backdrop-blur-sm"
            style="width: ${size}px; height: ${size}px; box-shadow: 0 0 20px rgba(0, 255, 194, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);">
-        <span class="text-[#00FFC2] font-bold drop-shadow-lg"
-              style="font-size: ${size < 50 ? '16px' : '18px'}; text-shadow: 0 0 10px rgba(0, 255, 194, 0.8);">
+        <span class="text-[#00FFC2] font-bold"
+              style="font-size: ${size < 50 ? '16px' : '18px'};">
           ${count}
         </span>
       </div>

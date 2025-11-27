@@ -514,20 +514,20 @@ function HospitalPageContent() {
       <div className="absolute top-4 left-0 right-0 z-10 px-4">
         <div className="max-w-[430px] mx-auto">
           <form onSubmit={handleSearchSubmit}>
-            <div className="flex items-center gap-3 bg-white shadow-lg rounded-full px-4 py-3">
+            <div className="flex items-center gap-3 bg-[#121212]/80 backdrop-blur-md shadow-lg rounded-full px-4 py-3 border border-white/10">
               <button
                 type="button"
                 onClick={() => router.push('/')}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1 rounded-lg hover:bg-white/10 transition-colors"
                 aria-label="홈으로"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-700" />
+                <ArrowLeft className="w-5 h-5 text-gray-300" />
               </button>
               <div className="flex-1 flex items-center gap-2">
                 {isSearching ? (
                   <Loader2 className="w-4 h-4 text-[#00FFC2] flex-shrink-0 animate-spin" />
                 ) : (
-                  <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 )}
                 <input
                   ref={searchInputRef}
@@ -535,14 +535,14 @@ function HospitalPageContent() {
                   value={searchKeyword}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="지역 또는 시술명 검색 (예: 강남, 피코토닝)"
-                  className="flex-1 text-gray-800 text-sm font-medium bg-transparent border-none outline-none placeholder:text-gray-400"
+                  className="flex-1 text-white text-sm font-medium bg-transparent border-none outline-none placeholder:text-gray-400"
                   disabled={isSearching}
                 />
                 {searchKeyword && (
                   <button
                     type="button"
                     onClick={handleClearSearch}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    className="p-1 rounded-full hover:bg-white/10 transition-colors"
                   >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
@@ -625,8 +625,8 @@ function HospitalPageContent() {
                 <div
                   key={pin.id}
                   id={`hospital-${pin.id}`}
-                  className={`bg-white/5 backdrop-blur-sm rounded-2xl mb-4 border-2 shadow-lg transition-all overflow-hidden ${
-                    pin.isHighlighted ? 'border-[#00FFC2] bg-gradient-to-br from-[#00FFC2]/10 to-transparent shadow-[0_0_15px_rgba(0,255,194,0.1)]' : 'border-white/10'
+                  className={`bg-white/5 backdrop-blur-sm rounded-2xl mb-4 shadow-[0_-5px_20px_-5px_rgba(0,255,194,0.1)] transition-all overflow-hidden ${
+                    pin.isHighlighted ? 'border-t-2 border-x-0 border-b-0 border-[#00FFC2] bg-gradient-to-br from-[#00FFC2]/10 to-transparent shadow-[0_-5px_20px_-5px_rgba(0,255,194,0.2)]' : 'border-t border-x-0 border-b-0 border-white/10'
                   } ${selectedHospitalId === pin.id ? 'ring-2 ring-[#00FFC2]' : ''}`}
                 >
                   {/* 클릭 가능한 영역 */}
@@ -663,9 +663,11 @@ function HospitalPageContent() {
                     {/* 가격 섹션 - 세련된 텍스트 중심 디자인 */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="px-2 py-1 bg-[#00FFC2]/10 text-[#00FFC2] text-xs font-semibold rounded border border-[#00FFC2]/20">
-                          {mainEvent.name}
-                        </span>
+                        {mainEvent.name && (
+                          <span className="px-2 py-1 bg-[#00FFC2]/10 text-[#00FFC2] text-xs font-semibold rounded border border-[#00FFC2]/20">
+                            {mainEvent.name}
+                          </span>
+                        )}
                         <span className="text-rose-500 text-sm font-bold">
                           {mainEvent.discountRate}%↓
                         </span>
@@ -727,7 +729,7 @@ function HospitalPageContent() {
                           toast.error('전화번호가 등록되지 않았습니다')
                         }
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/10 border border-white/20 text-white font-semibold rounded-xl hover:bg-white/20 transition-colors"
                     >
                       <Phone className="w-4 h-4" />
                       전화하기
