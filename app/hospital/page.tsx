@@ -509,7 +509,7 @@ function HospitalPageContent() {
           {/* 검색 결과 표시 */}
           {searchKeyword && (
             <div className="mb-4 text-sm text-gray-600">
-              <span className="font-semibold text-gray-900">'{searchKeyword}'</span> 검색 결과 {hospitals.length}개
+              <span className="font-semibold text-gray-900">&lsquo;{searchKeyword}&rsquo;</span> 검색 결과 {hospitals.length}개
             </div>
           )}
 

@@ -1,10 +1,13 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import QueryProvider from "./providers/QueryProvider";
 import ToastProvider from "./components/common/ToastProvider";
 import BottomNav from "./components/common/BottomNav";
 import GlobalScanModal from "./components/common/GlobalScanModal";
+import SplashScreen from "./components/SplashScreen";
+import { supabase } from '@/lib/supabase/client'
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -13,6 +16,38 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children, fontVariable }: RootLayoutProps) {
   const pathname = usePathname()
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function checkSession() {
+      try {
+        await supabase.auth.getSession()
+        if (isMounted) {
+          setIsAuthLoading(false)
+        }
+      } catch (error) {
+        console.error('Failed to check auth session:', error)
+        if (isMounted) {
+          setIsAuthLoading(false)
+        }
+      }
+    }
+
+    checkSession()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      if (isMounted) {
+        setIsAuthLoading(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      authListener?.subscription.unsubscribe()
+    }
+  }, [])
   
   // 하단 네비게이션 숨김 조건:
   // 1. /report, /hospital 경로
@@ -43,9 +78,15 @@ export default function RootLayout({ children, fontVariable }: RootLayoutProps) 
         <div className="mobile-container">
           <QueryProvider>
             <ToastProvider>
-              {children}
-              {shouldShowBottomNav && <BottomNav />}
-              <GlobalScanModal />
+              {isAuthLoading ? (
+                <SplashScreen />
+              ) : (
+                <>
+                  {children}
+                  {shouldShowBottomNav && <BottomNav />}
+                  <GlobalScanModal />
+                </>
+              )}
             </ToastProvider>
           </QueryProvider>
         </div>

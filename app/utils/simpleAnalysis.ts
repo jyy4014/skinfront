@@ -25,10 +25,11 @@ export interface TreatmentRecommendation {
 
 /**
  * 간단한 피부 분석 함수 (랜덤 확률 + 규칙 기반)
- * @param imageData - 이미지 데이터 (현재는 사용하지 않지만 향후 확장 가능)
+ * @param _imageData - 이미지 데이터 (현재는 사용하지 않지만 향후 확장 가능)
  * @returns 분석 결과
  */
-export function analyzeSkin(imageData?: any): SkinAnalysisResult {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function analyzeSkin(_imageData?: unknown): SkinAnalysisResult {
   // 랜덤으로 주요 문제 선택 (가중치 적용)
   const random = Math.random()
   let mainIssue: 'pigmentation' | 'pores' | 'wrinkles' | 'acne'

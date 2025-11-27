@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, MapPin, MessageCircle, Target } from 'lucide-react'
+import { ArrowLeft, MapPin, MessageCircle, Target, Sparkles, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import AnalysisLoading from '../components/AnalysisLoading'
+import { useToastContext } from '../components/common/ToastProvider'
+import { supabase } from '@/lib/supabase/client'
 
 // ============================================
 // 타입 정의
@@ -44,6 +46,26 @@ interface LandmarkPosition {
   y: number
 }
 
+// MediaPipe FaceMesh 타입
+interface FaceMeshLandmark {
+  x: number
+  y: number
+  z?: number
+}
+
+interface FaceMeshResults {
+  multiFaceLandmarks?: FaceMeshLandmark[][]
+}
+
+// Booking 타입
+interface BookingWithHospital {
+  hospitals?: { name: string } | null
+  hospital_name?: string
+  procedure_name?: string
+  treatment?: string
+  [key: string]: unknown
+}
+
 // ============================================
 // 상수
 // ============================================
@@ -52,13 +74,6 @@ const DETAIL_LABELS: Record<string, string> = {
   acne: '여드름/붉은기',
   wrinkles: '주름/탄력',
   pores: '모공',
-}
-
-const CONCERN_TO_KEY: Record<string, string> = {
-  '기미': 'pigmentation',
-  '여드름': 'acne',
-  '주름': 'wrinkles',
-  '모공': 'pores',
 }
 
 // ============================================
@@ -140,14 +155,15 @@ function FaceImageWithMarkers({
   imageUrl,
   details,
   landmarks,
+  faceMeshError,
 }: {
   imageUrl: string
   details: AnalysisResult['details']
   landmarks: LandmarkPosition[] | null
+  faceMeshError?: string | null
 }) {
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   useEffect(() => {
     if (containerRef.current) {
@@ -271,10 +287,11 @@ function FaceImageWithMarkers({
         </motion.div>
       ))}
 
-      {/* 랜드마크 없을 때 안내 */}
-      {markers.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-          <p className="text-gray-400 text-sm">마커 위치 분석 중...</p>
+      {/* 랜드마크 없을 때 에러 안내 */}
+      {markers.length === 0 && faceMeshError && (
+        <div className="absolute bottom-4 left-4 right-4 bg-red-500/90 backdrop-blur-sm rounded-lg p-3">
+          <p className="text-white text-xs font-medium">⚠️ 얼굴 인식 실패</p>
+          <p className="text-white/80 text-xs mt-1">{faceMeshError}</p>
         </div>
       )}
     </div>
@@ -371,37 +388,52 @@ function RecommendationCards({ recommendations }: { recommendations: Recommendat
 // ============================================
 export default function ReportPage() {
   const router = useRouter()
+  const toast = useToastContext()
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [landmarks, setLandmarks] = useState<LandmarkPosition[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const faceMeshRef = useRef<any>(null)
+  const [faceMeshError, setFaceMeshError] = useState<string | null>(null)
+  const [showMentorModal, setShowMentorModal] = useState(false)
+  const [mentorComment, setMentorComment] = useState('')
+  const [isSubmittingMentor, setIsSubmittingMentor] = useState(false)
+  const [beforeImage, setBeforeImage] = useState<File | null>(null)
+  const [beforeImagePreview, setBeforeImagePreview] = useState<string | null>(null)
+  const [afterImage, setAfterImage] = useState<File | null>(null)
+  const [afterImagePreview, setAfterImagePreview] = useState<string | null>(null)
+  const [useCurrentImage, setUseCurrentImage] = useState(true)
+  const [isHospitalVerified, setIsHospitalVerified] = useState(false)
+  const [visitCount, setVisitCount] = useState(0)
+  const [verifiedHospitalName, setVerifiedHospitalName] = useState<string | null>(null)
+  const [verifiedProcedureName, setVerifiedProcedureName] = useState<string | null>(null)
+  const [isCheckingVisit, setIsCheckingVisit] = useState(false)
 
-  // FaceMesh 초기화 및 랜드마크 추출
-  const extractLandmarksFromImage = useCallback(async (imageUrl: string) => {
-    try {
-      // MediaPipe FaceMesh 동적 로드
-      const FaceMeshModule = await import('@mediapipe/face_mesh')
-      const CameraUtilsModule = await import('@mediapipe/camera_utils')
-      
-      const FaceMesh = FaceMeshModule.FaceMesh
-      
-      const faceMesh = new FaceMesh({
-        locateFile: (file: string) => 
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-      })
+  // FaceMesh 초기화 및 랜드마크 추출 (타임아웃 포함)
+  const extractLandmarksFromImage = useCallback(async (imageUrl: string): Promise<LandmarkPosition[] | null> => {
+    const TIMEOUT_MS = 5000 // 5초 타임아웃
 
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      })
+    const extractPromise = new Promise<LandmarkPosition[]>(async (resolve, reject) => {
+      try {
+        // MediaPipe FaceMesh 동적 로드
+        const FaceMeshModule = await import('@mediapipe/face_mesh')
+        
+        const FaceMesh = FaceMeshModule.FaceMesh
+        
+        const faceMesh = new FaceMesh({
+          locateFile: (file: string) => 
+            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        })
 
-      return new Promise<LandmarkPosition[]>((resolve, reject) => {
-        faceMesh.onResults((results: any) => {
+        faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        })
+
+        faceMesh.onResults((results: FaceMeshResults) => {
           if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
-            const lms = results.multiFaceLandmarks[0].map((lm: any) => ({
+            const lms = results.multiFaceLandmarks[0].map((lm: FaceMeshLandmark) => ({
               x: lm.x,
               y: lm.y,
             }))
@@ -415,20 +447,37 @@ export default function ReportPage() {
         const img = document.createElement('img')
         img.crossOrigin = 'anonymous'
         img.onload = async () => {
-          await faceMesh.send({ image: img })
+          try {
+            await faceMesh.send({ image: img })
+          } catch {
+            reject(new Error('FaceMesh 처리 실패'))
+          }
         }
         img.onerror = () => reject(new Error('이미지 로드 실패'))
         img.src = imageUrl
-      })
+      } catch (err) {
+        reject(err)
+      }
+    })
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('FaceMesh 타임아웃 (5초)')), TIMEOUT_MS)
+    })
+
+    try {
+      return await Promise.race([extractPromise, timeoutPromise])
     } catch (err) {
-      console.error('FaceMesh 초기화 실패:', err)
-      return null
+      console.error('FaceMesh 실패:', err)
+      throw err // 에러를 상위로 전파
     }
   }, [])
 
   // 데이터 로드 및 API 호출
   useEffect(() => {
     const loadData = async () => {
+      const startTime = Date.now() // 시작 시간 기록
+      const MIN_LOADING_TIME_MS = 3000 // 최소 로딩 시간 3초
+      
       try {
         // 1. 먼저 localStorage에서 캐시된 결과 확인
         const storedResult = localStorage.getItem('latest_analysis_result')
@@ -442,10 +491,19 @@ export default function ReportPage() {
             try {
               const lms = await extractLandmarksFromImage(result.imageUrl)
               if (lms) setLandmarks(lms)
-            } catch (err) {
-              console.warn('랜드마크 추출 실패:', err)
+            } catch (err: unknown) {
+              const errorMsg = err instanceof Error ? err.message : 'FaceMesh 처리 실패'
+              console.error('랜드마크 추출 실패:', errorMsg)
+              setFaceMeshError(errorMsg)
+              setLandmarks(null)
+              toast.error(`얼굴 인식 실패: ${errorMsg}`)
             }
           }
+          
+          // 최소 3초 이상 기다린 후 로딩 종료
+          const elapsed = Date.now() - startTime
+          const remaining = Math.max(0, MIN_LOADING_TIME_MS - elapsed)
+          await new Promise(resolve => setTimeout(resolve, remaining))
           
           setIsLoading(false)
           return
@@ -501,29 +559,242 @@ export default function ReportPage() {
           try {
             const lms = await extractLandmarksFromImage(result.imageUrl)
             if (lms) setLandmarks(lms)
-          } catch (err) {
-            console.warn('랜드마크 추출 실패:', err)
+          } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'FaceMesh 처리 실패'
+            console.error('랜드마크 추출 실패:', errorMsg)
+            setFaceMeshError(errorMsg)
+            setLandmarks(null)
+            toast.error(`얼굴 인식 실패: ${errorMsg}`)
           }
         } else if (imageData) {
           // 업로드된 이미지가 없으면 원본 base64에서 추출 시도
           try {
             const lms = await extractLandmarksFromImage(imageData)
             if (lms) setLandmarks(lms)
-          } catch (err) {
-            console.warn('랜드마크 추출 실패:', err)
+          } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'FaceMesh 처리 실패'
+            console.error('랜드마크 추출 실패:', errorMsg)
+            setFaceMeshError(errorMsg)
+            setLandmarks(null)
+            toast.error(`얼굴 인식 실패: ${errorMsg}`)
           }
         }
 
+        // 최소 3초 이상 기다린 후 로딩 종료
+        const elapsed = Date.now() - startTime
+        const remaining = Math.max(0, MIN_LOADING_TIME_MS - elapsed)
+        await new Promise(resolve => setTimeout(resolve, remaining))
+        
         setIsLoading(false)
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : '분석에 실패했습니다'
         console.error('분석 실패:', err)
-        setError(err.message || '분석에 실패했습니다')
+        setError(errorMsg)
         setTimeout(() => router.push('/'), 3000)
       }
     }
 
     loadData()
-  }, [router, extractLandmarksFromImage])
+  }, [router, extractLandmarksFromImage, toast])
+
+  // 사진 업로드 함수
+  const uploadMentorImage = async (file: File, type: 'before' | 'after'): Promise<string | null> => {
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
+      if (!userId) return null
+
+      // 파일명 생성
+      const timestamp = Date.now()
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${userId}/${type}_${timestamp}.${fileExt}`
+
+      // 업로드 URL 요청
+      const { error: uploadError } = await supabase
+        .storage
+        .from('mentor-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error('사진 업로드 실패:', uploadError)
+        return null
+      }
+
+      // Public URL 가져오기
+      const { data: urlData } = supabase
+        .storage
+        .from('mentor-images')
+        .getPublicUrl(fileName)
+
+      return urlData.publicUrl
+    } catch (error) {
+      console.error('사진 업로드 에러:', error)
+      return null
+    }
+  }
+
+  // 방문 기록 조회 함수
+  const checkVisitHistory = async () => {
+    try {
+      setIsCheckingVisit(true)
+      const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
+      if (!userId) {
+        setIsHospitalVerified(false)
+        setIsCheckingVisit(false)
+        return
+      }
+
+      // bookings 테이블에서 방문 완료 기록 조회
+      // status가 'visited' 또는 'completed'인 경우
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*, hospitals(name)')
+        .eq('user_id', userId)
+        .in('status', ['visited', 'completed'])
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        // bookings 테이블이 없을 수도 있음
+        console.warn('방문 기록 조회 실패 (테이블이 없을 수 있음):', error)
+        setIsHospitalVerified(false)
+        setIsCheckingVisit(false)
+        return
+      }
+
+      if (bookings && bookings.length > 0) {
+        // 방문 기록이 있으면 인증됨
+        setIsHospitalVerified(true)
+        setVisitCount(bookings.length)
+        
+        // 가장 최근 방문 기록의 병원명과 시술명 가져오기
+        const latestBooking = bookings[0] as BookingWithHospital
+        setVerifiedHospitalName(
+          (latestBooking.hospitals && typeof latestBooking.hospitals === 'object' && 'name' in latestBooking.hospitals
+            ? latestBooking.hospitals.name
+            : latestBooking.hospital_name) || null
+        )
+        setVerifiedProcedureName(latestBooking.procedure_name || latestBooking.treatment || null)
+      } else {
+        setIsHospitalVerified(false)
+        setVisitCount(0)
+        setVerifiedHospitalName(null)
+        setVerifiedProcedureName(null)
+      }
+    } catch (error) {
+      console.error('방문 기록 조회 에러:', error)
+      setIsHospitalVerified(false)
+    } finally {
+      setIsCheckingVisit(false)
+    }
+  }
+
+  // 멘토 모달 열기 핸들러
+  const handleOpenMentorModal = () => {
+    setShowMentorModal(true)
+    checkVisitHistory()
+  }
+
+  // 멘토 모달 닫기 핸들러
+  const handleCloseMentorModal = () => {
+    setShowMentorModal(false)
+    setMentorComment('')
+    setBeforeImage(null)
+    setBeforeImagePreview(null)
+    setAfterImage(null)
+    setAfterImagePreview(null)
+    setUseCurrentImage(true)
+    setIsHospitalVerified(false)
+    setVisitCount(0)
+    setVerifiedHospitalName(null)
+    setVerifiedProcedureName(null)
+  }
+
+  // 멘토 팁 등록 핸들러
+  const handleMentorRegister = async () => {
+    if (!analysisResult) return
+
+    if (!mentorComment.trim()) {
+      toast.error('팁 내용을 입력해주세요.')
+      return
+    }
+
+    setIsSubmittingMentor(true)
+
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
+      if (!userId) {
+        toast.error('로그인이 필요합니다.')
+        setIsSubmittingMentor(false)
+        return
+      }
+
+      // 추천 시술명 결정
+      // 인증된 사용자는 방문했던 시술명 우선, 아니면 AI 추천 시술명
+      const procedureName = isHospitalVerified && verifiedProcedureName
+        ? verifiedProcedureName
+        : analysisResult.recommendations?.[0]?.name || null
+
+      // 사진 업로드
+      let beforeImageUrl: string | null = null
+      let afterImageUrl: string | null = null
+
+      if (beforeImage) {
+        beforeImageUrl = await uploadMentorImage(beforeImage, 'before')
+        if (!beforeImageUrl) {
+          toast.error('Before 사진 업로드에 실패했습니다.')
+          setIsSubmittingMentor(false)
+          return
+        }
+      }
+
+      if (useCurrentImage && analysisResult.imageUrl) {
+        // 현재 진단 이미지 사용
+        afterImageUrl = analysisResult.imageUrl
+      } else if (afterImage) {
+        // 다른 사진 업로드
+        afterImageUrl = await uploadMentorImage(afterImage, 'after')
+        if (!afterImageUrl) {
+          toast.error('After 사진 업로드에 실패했습니다.')
+          setIsSubmittingMentor(false)
+          return
+        }
+      }
+
+      const response = await fetch('/api/mentor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          skinScore: analysisResult.totalScore,
+          primaryConcern: analysisResult.primaryConcern,
+          procedureName,
+          comment: mentorComment.trim(),
+          beforeImageUrl,
+          afterImageUrl,
+          isHospitalVerified,
+          visitCount,
+          verifiedHospitalName,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '등록 실패')
+      }
+
+      toast.success('멘토 팁이 등록되었습니다! 다른 사용자들에게 도움이 될 거예요.')
+      handleCloseMentorModal()
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '멘토 팁 등록에 실패했습니다.'
+      console.error('멘토 팁 등록 실패:', err)
+      toast.error(errorMsg)
+    } finally {
+      setIsSubmittingMentor(false)
+    }
+  }
 
   // 로딩 중
   if (isLoading) {
@@ -600,6 +871,7 @@ export default function ReportPage() {
               imageUrl={imageUrl}
               details={details}
               landmarks={landmarks}
+              faceMeshError={faceMeshError}
             />
             <p className="text-gray-500 text-xs mt-2 text-center">
               마커를 탭하면 상세 정보를 볼 수 있어요
@@ -645,7 +917,312 @@ export default function ReportPage() {
         <div className="mt-10">
           <RecommendationCards recommendations={recommendations} />
         </div>
+
+        {/* ============================================ */}
+        {/* 섹션 6: 멘토 등록 버튼 */}
+        {/* ============================================ */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="mt-8"
+        >
+          <button
+            onClick={handleOpenMentorModal}
+            className="w-full py-4 px-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-2 border-purple-500/50 rounded-xl text-white font-semibold hover:from-purple-500/30 hover:to-pink-500/30 transition-all flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>멘토 팁 남기기</span>
+          </button>
+          <p className="text-gray-500 text-xs text-center mt-2">
+            다른 사용자들에게 도움이 되는 팁을 공유해주세요
+          </p>
+        </motion.div>
       </div>
+
+      {/* ============================================ */}
+      {/* 멘토 등록 모달 */}
+      {/* ============================================ */}
+      <AnimatePresence>
+        {showMentorModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCloseMentorModal}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md rounded-2xl bg-gradient-to-br from-gray-900 to-slate-800 border border-[#00FFC2]/30 shadow-2xl overflow-hidden"
+            >
+              {/* 닫기 버튼 */}
+              <button
+                onClick={handleCloseMentorModal}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-800/80 hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+
+              <div className="p-6 space-y-4">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Sparkles className="w-8 h-8 text-purple-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">멘토 팁 남기기</h2>
+                  <p className="text-gray-400 text-sm">
+                    다른 사용자들에게 도움이 되는 팁을 공유해주세요
+                  </p>
+                </div>
+
+                {/* 방문 기록 확인 중 */}
+                {isCheckingVisit && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 text-center">
+                    <div className="w-6 h-6 border-2 border-[#00FFC2] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">방문 기록 확인 중...</p>
+                  </div>
+                )}
+
+                {/* 병원 방문 인증 상태 */}
+                {!isCheckingVisit && (
+                  <>
+                    {isHospitalVerified ? (
+                      <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl p-4 border-2 border-blue-500/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">🏥</span>
+                          <h3 className="text-white font-bold text-lg">병원 방문이 인증되었습니다!</h3>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-300">방문 횟수:</span>
+                            <span className="text-white font-semibold">{visitCount}회</span>
+                          </div>
+                          {verifiedHospitalName && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-300">방문 병원:</span>
+                              <span className="text-white font-semibold">{verifiedHospitalName}</span>
+                            </div>
+                          )}
+                          {verifiedProcedureName && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-300">시술명:</span>
+                              <span className="text-[#00FFC2] font-semibold">{verifiedProcedureName}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-500/10 rounded-xl p-4 border border-yellow-500/30">
+                        <div className="flex items-start gap-2">
+                          <span className="text-yellow-400 text-xl">⚠️</span>
+                          <div className="flex-1">
+                            <p className="text-yellow-400 font-semibold text-sm mb-1">
+                              병원 방문 기록이 없습니다
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              &apos;홈케어 멘토&apos;로 등록됩니다. (시술 추천 불가)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* 현재 정보 표시 */}
+                {analysisResult && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-400 text-xs mb-1">현재 점수</p>
+                        <p className="text-white font-semibold">{analysisResult.totalScore}점</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs mb-1">주요 고민</p>
+                        <p className="text-white font-semibold">{analysisResult.primaryConcern}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 사진으로 인증하기 (선택) */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-white text-sm font-medium">사진으로 인증하기</span>
+                    <span className="text-gray-500 text-xs">(선택)</span>
+                  </div>
+
+                  {/* Before 사진 업로드 */}
+                  <div>
+                    <label className="block text-gray-400 text-xs mb-2">시술 전 사진</label>
+                    {beforeImagePreview ? (
+                      <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={beforeImagePreview}
+                          alt="Before"
+                          className="w-full h-32 object-cover rounded-lg border border-gray-700"
+                        />
+                        <button
+                          onClick={() => {
+                            setBeforeImage(null)
+                            setBeforeImagePreview(null)
+                          }}
+                          className="absolute top-2 right-2 p-1 bg-red-500 rounded-full"
+                        >
+                          <X className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              setBeforeImage(file)
+                              const reader = new FileReader()
+                              reader.onloadend = () => {
+                                setBeforeImagePreview(reader.result as string)
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                        <div className="w-full h-32 border-2 border-dashed border-gray-700 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#00FFC2]/50 transition-colors">
+                          <div className="text-center">
+                            <p className="text-gray-400 text-sm">+ 사진 선택</p>
+                            <p className="text-gray-500 text-xs mt-1">시술 전 사진이 있나요?</p>
+                          </div>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* After 사진 선택 */}
+                  <div>
+                    <label className="block text-gray-400 text-xs mb-2">시술 후 사진</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useCurrentImage}
+                          onChange={(e) => {
+                            setUseCurrentImage(e.target.checked)
+                            if (e.target.checked) {
+                              setAfterImage(null)
+                              setAfterImagePreview(null)
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-[#00FFC2] focus:ring-[#00FFC2]"
+                        />
+                        <span className="text-gray-300 text-sm">
+                          현재 진단받은 이 사진 사용하기
+                        </span>
+                      </label>
+                      {!useCurrentImage && (
+                        <>
+                          {afterImagePreview ? (
+                            <div className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={afterImagePreview}
+                                alt="After"
+                                className="w-full h-32 object-cover rounded-lg border border-gray-700"
+                              />
+                              <button
+                                onClick={() => {
+                                  setAfterImage(null)
+                                  setAfterImagePreview(null)
+                                }}
+                                className="absolute top-2 right-2 p-1 bg-red-500 rounded-full"
+                              >
+                                <X className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="block">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    setAfterImage(file)
+                                    const reader = new FileReader()
+                                    reader.onloadend = () => {
+                                      setAfterImagePreview(reader.result as string)
+                                    }
+                                    reader.readAsDataURL(file)
+                                  }
+                                }}
+                              />
+                              <div className="w-full h-32 border-2 border-dashed border-gray-700 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#00FFC2]/50 transition-colors">
+                                <div className="text-center">
+                                  <p className="text-gray-400 text-sm">+ 사진 선택</p>
+                                  <p className="text-gray-500 text-xs mt-1">다른 사진 업로드</p>
+                                </div>
+                              </div>
+                            </label>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 팁 입력 */}
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    팁 내용 <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    value={mentorComment}
+                    onChange={(e) => setMentorComment(e.target.value)}
+                    placeholder="예: 재생크림을 필수로 사용하세요! 3회차부터 효과가 확실히 보였어요."
+                    className="w-full h-32 px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#00FFC2]/50 resize-none"
+                    maxLength={500}
+                  />
+                  <p className="text-gray-500 text-xs mt-1 text-right">
+                    {mentorComment.length}/500
+                  </p>
+                </div>
+
+                {/* 등록 버튼 */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleMentorRegister}
+                  disabled={isSubmittingMentor || !mentorComment.trim()}
+                  className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmittingMentor ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                      />
+                      <span>등록 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      <span>팁 등록하기</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ============================================ */}
       {/* 하단 플로팅 CTA 버튼 */}

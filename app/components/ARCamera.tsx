@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Webcam from 'react-webcam'
 import { motion, useAnimation, AnimatePresence } from 'framer-motion'
 import type { FaceMesh as FaceMeshType, NormalizedLandmark } from '@mediapipe/face_mesh'
-import { isCameraDebugEnabled } from '@/lib/appSettings'
+import { getCameraDebugSettings } from '@/lib/appSettings'
 
 interface ARCameraProps {
   className?: string
@@ -34,7 +34,6 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   const [isMockMode, setIsMockMode] = useState(false)
   const [scanningStage, setScanningStage] = useState<'idle' | 'scanning' | 'processing' | 'complete'>('idle')
   const [bottomMessage, setBottomMessage] = useState('얼굴을 가이드 안에 맞춰주세요')
-  const [isShutterDisabled, setIsShutterDisabled] = useState(true)
   const [frozenFrame, setFrozenFrame] = useState<string | null>(null) // 📸 정지 프레임 이미지
   const [laserProgress, setLaserProgress] = useState(0) // 레이저 진행률 (0-100) - Mesh Reveal용
   const [showDataTransfer, setShowDataTransfer] = useState(false) // 데이터 전송 연출 상태
@@ -43,8 +42,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   const faceMeshControls = useAnimation() // 얼굴 메쉬 펄스 애니메이션 컨트롤
   const fadeControls = useAnimation() // 페이드 아웃 애니메이션 컨트롤
   const rippleControls = useAnimation() // 원형 파동 애니메이션 컨트롤
-  const landmarksRef = useRef<any[] | null>(null) // 랜드마크 저장용
-  const [isFaceDetected, setIsFaceDetected] = useState(false) // 얼굴 감지 상태
+  const landmarksRef = useRef<NormalizedLandmark[] | null>(null) // 랜드마크 저장용
   const [faceDetectionStartTime, setFaceDetectionStartTime] = useState<number | null>(null) // 얼굴 감지 시작 시간
   const faceDetectionDurationRef = useRef<number>(0) // 얼굴 감지 지속 시간 (ms)
   const [faceAlignment, setFaceAlignment] = useState<'none' | 'aligned'>('none') // 얼굴 정렬 상태
@@ -54,7 +52,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   const [lightingStatus, setLightingStatus] = useState<'ok' | 'too-dark'>('ok') // 조명 상태
   const [poseStatus, setPoseStatus] = useState<'ok' | 'not-frontal'>('ok') // 얼굴 각도 상태
   const lastLightingCheckRef = useRef<number>(0) // 마지막 조명 검사 시간 (성능 최적화)
-  const [isScreenLightOn, setIsScreenLightOn] = useState(false) // 화면 조명 상태
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isScreenLightOn, _setIsScreenLightOn] = useState(false) // 화면 조명 상태
   
   // 🎯 햅틱 피드백 상태
   const lastHapticTriggerRef = useRef<string | null>(null) // 마지막 햅틱 트리거 종류
@@ -82,7 +81,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     pitchValue: 0, // 상하 기울기 값 (-8~18 = OK, 음수=고개들기, 양수=숙이기)
     rollAngle: 0, // 머리 기울기 (±8° = OK)
   })
-  const [showDebugOverlay, setShowDebugOverlay] = useState(false) // 디버그 오버레이 표시 여부 (DB에서 로드)
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false) // 좌측 디버그 패널 표시 여부 (DB에서 로드)
+  const [showPoseGuide, setShowPoseGuide] = useState(false) // 우측 3D 자세 가이드 표시 여부 (DB에서 로드)
 
   // 🧹 메모리 누수 방지: 컴포넌트 언마운트 시 전체 리소스 정리
   useEffect(() => {
@@ -111,14 +111,16 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       }
 
       // 3. 카메라 스트림 종료 (모든 트랙 stop)
-      if (webcamRef.current?.video?.srcObject) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const webcam = webcamRef.current
+      if (webcam?.video?.srcObject) {
         try {
-          const stream = webcamRef.current.video.srcObject as MediaStream
+          const stream = webcam.video.srcObject as MediaStream
           stream.getTracks().forEach((track) => {
             track.stop()
             console.log(`🧹 [ARCamera] Camera track stopped: ${track.kind}`)
           })
-          webcamRef.current.video.srcObject = null
+          webcam.video.srcObject = null
           console.log('🧹 [ARCamera] Camera stream released')
         } catch (error) {
           console.warn('🧹 [ARCamera] Error stopping camera stream:', error)
@@ -126,10 +128,12 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       }
 
       // 4. Canvas 정리
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const canvas = canvasRef.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
         if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
         }
         console.log('🧹 [ARCamera] Canvas cleared')
       }
@@ -152,13 +156,17 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     }
   }, [])
 
-  // 🐛 DB에서 디버그 설정 로드
+  // 🐛 DB에서 디버그 설정 로드 (좌측 패널 + 우측 자세 가이드)
   useEffect(() => {
     const loadDebugSettings = async () => {
       try {
-        const enabled = await isCameraDebugEnabled()
-        setShowDebugOverlay(enabled)
-        console.log(`🐛 [ARCamera] Debug overlay: ${enabled ? 'ON' : 'OFF'} (from DB)`)
+        const settings = await getCameraDebugSettings()
+        setShowDebugOverlay(settings.show_debug_panel)
+        setShowPoseGuide(settings.show_pose_guide)
+        console.log(`🐛 [ARCamera] Debug settings (from DB):`, {
+          debugPanel: settings.show_debug_panel ? 'ON' : 'OFF',
+          poseGuide: settings.show_pose_guide ? 'ON' : 'OFF',
+        })
       } catch (error) {
         console.warn('🐛 [ARCamera] Failed to load debug settings:', error)
       }
@@ -381,6 +389,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       // 모델 준비 상태 리셋
       setIsModelReady(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]) // isReady가 true로 변경되면 초기화 실행
 
   // 얼굴 경계 계산 (너비, 높이, 중심점)
@@ -599,7 +608,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     const guideHeight = screenHeight * 0.55
     const guideCenterX = screenWidth / 2
     // 🎯 High Angle Correction: 가이드라인을 더 위로 올림 (눈높이 촬영 유도)
-    const guideCenterY = screenHeight * 0.35 // 화면 상단 35% 위치 (기존 40%)
+    // guideCenterY는 현재 사용되지 않음
 
     // ═══════════════════════════════════════════════════════════════════════════
     // 🥇 1순위: 조명(밝기) 검사 - 화면 조명이 켜져 있으면 통과
@@ -620,8 +629,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     const normalizedY = glabella ? glabella.y : 0
     const normalizedOffsetX = glabella ? (referenceX - guideCenterX) / screenWidth : 0
     
-    // 🔓 완화됨: Y축 기준점을 45%로 (약간 위쪽)
-    const idealY = 0.45 // 화면 상단 45% 위치가 이상적 (기존 42%)
+    // 🔒 엄격: Y축 기준점을 40%로 (더 위쪽으로 올림)
+    const idealY = 0.40 // 화면 상단 40% 위치가 이상적 (더 위로 올림)
     const normalizedOffsetY = glabella ? normalizedY - idealY : 0
     
     // 거리 판별 변수
@@ -654,8 +663,8 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       return { aligned: false, message: '👤 얼굴을 가이드 안에 맞춰주세요', color: 'white' }
     }
 
-    // 🚨 최우선 체크: Y좌표가 60% 이상이면 무조건 "폰을 높이 들어주세요"
-    if (normalizedY > 0.60) {
+    // 🚨 최우선 체크: Y좌표가 50% 이상이면 무조건 "폰을 높이 들어주세요" (더 엄격하게)
+    if (normalizedY > 0.50) {
       setGuideMessage('📱 핸드폰을 더 높이 들어주세요')
       setGuideColor('white')
       return { aligned: false, message: '📱 핸드폰을 더 높이 들어주세요', color: 'white' }
@@ -733,11 +742,16 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
   }
 
   // 얼굴 정렬 검사 (Face ID 스타일 - 엄격한 판정) - 기존 함수 유지 (호환성, 사용되지 않음)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const checkFaceAlignment = (
-    landmarks: NormalizedLandmark[],
-    screenWidth: number,
-    screenHeight: number,
-    faceBounds: { centerX: number; centerY: number; width: number; height: number }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _landmarks: NormalizedLandmark[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _screenWidth: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _screenHeight: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _faceBounds: { centerX: number; centerY: number; width: number; height: number }
   ): boolean => {
     // 이 함수는 호환성을 위해 유지되지만 실제로는 사용되지 않음
     // checkFaceAlignmentWithFeedback을 직접 사용해야 함
@@ -1343,6 +1357,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       // 에러 발생 시에도 페이지 이동
       handleCaptureAndNavigate()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanningStage, isMockMode, laserControls, faceMeshControls, fadeControls, rippleControls, handleCaptureAndNavigate, freezeScreen])
 
   // executeCinematicSequence를 ref에 저장 (의존성 문제 해결)
@@ -1357,7 +1372,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       return
     }
 
-    const LOCK_ON_DURATION = 1500 // 🔒 엄격: 1.5초 유지해야 촬영
+    const LOCK_ON_DURATION = 3000 // 🔒 엄격: 3초 유지해야 촬영
     
     // 3단계 검증이 모두 Pass인지 확인하는 함수
     const checkConditions = () => {
@@ -1518,6 +1533,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
         cancelAnimationFrame(frameId)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCameraReady, isMockMode, scanningStage])
 
   // 모델이 준비되면 프레임 처리 시작
@@ -1686,6 +1702,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
 
       {/* Webcam 또는 Mock 이미지 */}
       {isMockMode ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1000&auto=format&fit=crop"
           alt="Mock face for development"
@@ -1974,8 +1991,9 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
           
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* 🎯 Visual Aid #1: 3D 자세 가이드 (Pose Indicator) - 우측 상단 */}
+          {/* DB 설정으로 켜고 끌 수 있음 (show_pose_guide) */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {scanningStage === 'idle' && debugInfo.faceDetected && (
+          {showPoseGuide && scanningStage === 'idle' && debugInfo.faceDetected && (
             <div className="absolute top-4 right-4 z-30">
               <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-gray-700">
                 {/* 얼굴 아이콘 SVG - 실시간 회전 */}
@@ -2110,6 +2128,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
               />
             ) : (
               // 실제 Base64 이미지가 있을 때
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={frozenFrame}
                 alt="Captured frame"

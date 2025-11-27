@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Heart, MessageCircle, Share2, Calendar } from 'lucide-react'
-import { motion } from 'framer-motion'
+import Image from 'next/image'
 import BeforeAfterSlider from '@/app/components/common/BeforeAfterSlider'
 import AuthorProfileBadges from '@/app/components/community/AuthorProfileBadges'
 import { getSkinRecords } from '@/app/utils/storage'
@@ -100,21 +100,30 @@ export default function CommunityDetailPage() {
 
   // 사용자 피부 정보 불러오기
   useEffect(() => {
-    try {
-      const allRecords = getSkinRecords()
-      if (allRecords.length > 0) {
-        const latestRecord = allRecords[0]
-        const skinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
-          기미: 'Dry',
-          모공: 'Oily',
-          주름: 'Combination',
-          여드름: 'Sensitive',
+    let isMounted = true
+    const timer = window.setTimeout(() => {
+      if (!isMounted) return
+      try {
+        const allRecords = getSkinRecords()
+        if (allRecords.length > 0) {
+          const latestRecord = allRecords[0]
+          const skinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
+            기미: 'Dry',
+            모공: 'Oily',
+            주름: 'Combination',
+            여드름: 'Sensitive',
+          }
+          setMySkinType(skinTypeMap[latestRecord.primaryConcern] || 'Normal')
+          setMyConcern(latestRecord.primaryConcern)
         }
-        setMySkinType(skinTypeMap[latestRecord.primaryConcern] || 'Normal')
-        setMyConcern(latestRecord.primaryConcern)
+      } catch (error) {
+        console.error('Failed to load user records:', error)
       }
-    } catch (error) {
-      console.error('Failed to load user records:', error)
+    }, 0)
+
+    return () => {
+      isMounted = false
+      window.clearTimeout(timer)
     }
   }, [])
 
@@ -187,7 +196,13 @@ export default function CommunityDetailPage() {
           </div>
         ) : post.images && post.images.length > 0 ? (
           <div className="mb-6 rounded-xl overflow-hidden">
-            <img src={post.images[0]} alt={post.title} className="w-full h-auto" />
+            <Image
+              src={post.images[0]}
+              alt={post.title}
+              width={800}
+              height={600}
+              className="w-full h-auto object-cover"
+            />
           </div>
         ) : null}
 

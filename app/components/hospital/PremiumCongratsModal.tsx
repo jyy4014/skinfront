@@ -77,7 +77,7 @@ export default function PremiumCongratsModal({ isOpen, onClose }: PremiumCongrat
                   transition={{ delay: 0.4 }}
                   className="text-gray-300 text-lg mb-6 leading-relaxed"
                 >
-                  병원 예약 혜택으로 <span className="text-[#00FFC2] font-bold">'Premium'</span> 등급이 되었습니다.
+                  병원 예약 혜택으로 <span className="text-[#00FFC2] font-bold">&lsquo;Premium&rsquo;</span> 등급이 되었습니다.
                   <br />
                   이제 <span className="text-[#FFD700] font-semibold">광고 없이 무제한 분석</span>이 가능합니다!
                 </motion.p>
@@ -121,6 +121,7 @@ export default function PremiumCongratsModal({ isOpen, onClose }: PremiumCongrat
     </AnimatePresence>
   )
 }
+
 
 
 

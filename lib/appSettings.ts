@@ -103,27 +103,37 @@ export async function isGeminiEnabled(): Promise<boolean> {
  * 카메라 디버그 설정 타입
  */
 export interface CameraDebugSettings {
-  enabled: boolean // 디버그 오버레이 표시 여부
+  show_debug_panel: boolean // 좌측 디버그 패널 표시 여부
+  show_pose_guide: boolean // 우측 3D 자세 가이드 표시 여부
 }
 
 /**
  * 카메라 디버그 설정 조회
- * @returns enabled=true면 디버그 오버레이 표시
+ * @returns 두 디버그 모달의 표시 여부
  */
 export async function getCameraDebugSettings(): Promise<CameraDebugSettings> {
   const defaultSettings: CameraDebugSettings = {
-    enabled: false, // 기본값: 디버그 오버레이 숨김
+    show_debug_panel: false, // 기본값: 좌측 디버그 패널 숨김
+    show_pose_guide: false, // 기본값: 우측 3D 자세 가이드 숨김
   }
 
   return getSettingWithCache('show_camera_debug', defaultSettings)
 }
 
 /**
- * 카메라 디버그 활성화 여부만 빠르게 확인
+ * 카메라 디버그 패널 활성화 여부만 빠르게 확인 (좌측 패널)
  */
 export async function isCameraDebugEnabled(): Promise<boolean> {
   const settings = await getCameraDebugSettings()
-  return settings.enabled
+  return settings.show_debug_panel
+}
+
+/**
+ * 3D 자세 가이드 활성화 여부만 빠르게 확인 (우측 패널)
+ */
+export async function isPoseGuideEnabled(): Promise<boolean> {
+  const settings = await getCameraDebugSettings()
+  return settings.show_pose_guide
 }
 
 /**

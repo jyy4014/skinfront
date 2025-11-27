@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { ChevronsLeftRight } from 'lucide-react'
 
 interface BeforeAfterSliderProps {
@@ -90,12 +91,15 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, className =
           opacity: imagesLoaded.before ? 1 : 0,
         }}
       >
-        <img
+        <Image
           src={beforeImage}
           alt="Before"
+          width={1}
+          height={1}
           className="hidden"
-          onLoad={() => setImagesLoaded((prev) => ({ ...prev, before: true }))}
+          onLoadingComplete={() => setImagesLoaded((prev) => ({ ...prev, before: true }))}
           onError={() => setImagesLoaded((prev) => ({ ...prev, before: true }))}
+          priority={false}
         />
       </div>
 
@@ -108,12 +112,15 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, className =
           opacity: imagesLoaded.after ? 1 : 0,
         }}
       >
-        <img
+        <Image
           src={afterImage}
           alt="After"
+          width={1}
+          height={1}
           className="hidden"
-          onLoad={() => setImagesLoaded((prev) => ({ ...prev, after: true }))}
+          onLoadingComplete={() => setImagesLoaded((prev) => ({ ...prev, after: true }))}
           onError={() => setImagesLoaded((prev) => ({ ...prev, after: true }))}
+          priority={false}
         />
       </div>
 

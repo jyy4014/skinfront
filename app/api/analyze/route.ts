@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       : `anonymous/${timestamp}-${randomString}.${fileExtension}`
 
     // Storage에 업로드
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('skin-images')
       .upload(fileName, byteCharacters, {
         contentType: mimeType,
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
           analysis_result: analysisResult.details,
           ai_comment: analysisResult.aiComment, // 필드명 변경: doctorComment -> aiComment
           recommendations: analysisResult.recommendations, // 시술 추천 저장
+          is_active: true, // Soft Delete를 위한 활성화 상태
         })
         .select('id')
         .single()
@@ -174,13 +175,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     )
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '알 수 없는 오류'
     console.error('피부 분석 API 에러:', error)
     
     return NextResponse.json(
       {
         error: '피부 분석 중 오류가 발생했습니다.',
-        message: error.message || '알 수 없는 오류',
+        message,
       },
       { status: 500 }
     )

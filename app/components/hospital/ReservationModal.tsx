@@ -31,11 +31,21 @@ export default function ReservationModal({ isOpen, onClose }: ReservationModalPr
 
   // 최근 진단 기록 불러오기
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
       const records = getRecentSkinRecords(1)
       if (records.length > 0) {
         setRecentRecord(records[0])
       }
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
     }
   }, [isOpen])
 

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, startTransition } from 'react'
 import { Bell, Settings, Sun, Droplets, MapPin, MessageSquare, BarChart3, FlaskConical, ChevronRight, CheckCircle2 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { getRecentSkinRecords, type SkinAnalysisRecord } from './utils/storage'
 import Link from 'next/link'
 import confetti from 'canvas-confetti'
+import SkinTwinWidget from './components/home/SkinTwinWidget'
 
 // ==================== 타입 정의 ====================
 interface RoutineItem {
@@ -177,55 +178,6 @@ function getDDay(dateString: string, timeString: string): number {
 // ==================== 컴포넌트 ====================
 
 /**
- * 원형 프로그레스 차트
- */
-function DonutChart({ score, size = 120 }: { score: number; size?: number }) {
-  const radius = (size - 20) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (score / 100) * circumference
-
-  const getColor = (score: number) => {
-    if (score >= 80) return '#10b981' // green-500
-    if (score >= 60) return '#3b82f6' // blue-500
-    if (score >= 40) return '#f59e0b' // amber-500
-    return '#ef4444' // red-500
-  }
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#374151"
-          strokeWidth="12"
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={getColor(score)}
-          strokeWidth="12"
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-3xl font-bold text-white">{score}</div>
-          <div className="text-xs text-gray-400">점</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/**
  * 로딩 스켈레톤
  */
 function LoadingSkeleton() {
@@ -250,7 +202,7 @@ function LoadingSkeleton() {
 export default function HomePage() {
   const router = useRouter()
   const [scrollY, setScrollY] = useState(0)
-  const [isMounted, setIsMounted] = useState(false)
+  const [isMounted] = useState(true)
   
   // 사용자 데이터
   const [userName, setUserName] = useState<string>('')
@@ -258,14 +210,13 @@ export default function HomePage() {
   
   // 피부 분석 데이터
   const [latestRecord, setLatestRecord] = useState<SkinAnalysisRecord | null>(null)
-  const [previousRecord, setPreviousRecord] = useState<SkinAnalysisRecord | null>(null)
   
   // 시간 및 날씨
   const [currentHour, setCurrentHour] = useState<number>(12)
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   
   // 루틴 데이터
-  const [routineItems, setRoutineItems] = useState<RoutineItem[]>([])
+  const routineItems = useMemo(() => isMounted ? getTimeBasedRoutines(currentHour) : [], [currentHour, isMounted])
   const [completedRoutines, setCompletedRoutines] = useState<Set<string>>(new Set())
   
   // 🏥 예약 상태 (스마트 홈)
@@ -275,8 +226,6 @@ export default function HomePage() {
   // ==================== 초기화 로직 ====================
 
   useEffect(() => {
-    setIsMounted(true)
-    
     // 시간 업데이트
     const updateTime = () => {
       const now = new Date()
@@ -286,79 +235,75 @@ export default function HomePage() {
     const interval = setInterval(updateTime, 60000) // 1분마다 업데이트
     
     // 날씨 데이터 생성 (한 번만)
-    setWeatherData(generateWeatherData())
+    startTransition(() => {
+      setWeatherData(generateWeatherData())
+    })
     
     return () => clearInterval(interval)
   }, [])
-
-  // 시간대별 루틴 업데이트
-  useEffect(() => {
-    if (isMounted) {
-      setRoutineItems(getTimeBasedRoutines(currentHour))
-    }
-  }, [currentHour, isMounted])
 
   // 사용자 데이터 및 피부 기록 로드
   useEffect(() => {
     if (!isMounted) return
 
-    try {
-      // 사용자 이름 (Null Safety)
-      const storedName = localStorage.getItem('userName')
-      setUserName(storedName ?? '게스트')
+    startTransition(() => {
+      try {
+        // 사용자 이름 (Null Safety)
+        const storedName = localStorage.getItem('userName')
+        setUserName(storedName ?? '게스트')
 
-      // 프리미엄 체크
-      const userTier = localStorage.getItem('user_tier')
-      setIsPremium(userTier === 'premium')
+        // 프리미엄 체크
+        const userTier = localStorage.getItem('user_tier')
+        setIsPremium(userTier === 'premium')
 
-      // 최신 진단 기록 불러오기
-      const records = getRecentSkinRecords(2)
-      if (records.length > 0) {
-        setLatestRecord(records[0] ?? null)
-        if (records.length > 1) {
-          setPreviousRecord(records[1] ?? null)
+        // 최신 진단 기록 불러오기
+        const records = getRecentSkinRecords(2)
+        if (records.length > 0) {
+          setLatestRecord(records[0] ?? null)
         }
-      }
 
-      // 🏥 예약 상태 체크 (스마트 홈)
-      const bookingResult = checkBookingStatus()
-      setHomeStatus(bookingResult.status)
-      setActiveBooking(bookingResult.booking ?? null)
-    } catch (error) {
-      console.error('Failed to load user data:', error)
-      // 기본값 설정
-      setUserName('게스트')
-      setIsPremium(false)
-    }
+        // 🏥 예약 상태 체크 (스마트 홈)
+        const bookingResult = checkBookingStatus()
+        setHomeStatus(bookingResult.status)
+        setActiveBooking(bookingResult.booking ?? null)
+      } catch (error) {
+        console.error('Failed to load user data:', error)
+        // 기본값 설정
+        setUserName('게스트')
+        setIsPremium(false)
+      }
+    })
   }, [isMounted])
 
   // 루틴 체크 데이터 로드 및 날짜 체크
   useEffect(() => {
     if (!isMounted) return
 
-    try {
-      const stored = localStorage.getItem('completed_routines')
-      if (!stored) {
-        // 데이터가 없으면 초기화
-        setCompletedRoutines(new Set())
-        return
-      }
+    startTransition(() => {
+      try {
+        const stored = localStorage.getItem('completed_routines')
+        if (!stored) {
+          // 데이터가 없으면 초기화
+          setCompletedRoutines(new Set())
+          return
+        }
 
-      const routineData: RoutineData = JSON.parse(stored)
-      const today = getTodayDateString()
+        const routineData: RoutineData = JSON.parse(stored)
+        const today = getTodayDateString()
 
-      // 날짜가 다르면 리셋
-      if (routineData.date !== today) {
+        // 날짜가 다르면 리셋
+        if (routineData.date !== today) {
+          setCompletedRoutines(new Set())
+          localStorage.setItem('completed_routines', JSON.stringify({ date: today, checks: [] }))
+        } else {
+          // 오늘 날짜면 기존 체크 불러오기
+          setCompletedRoutines(new Set(routineData.checks ?? []))
+        }
+      } catch (error) {
+        console.error('Failed to load routine data:', error)
         setCompletedRoutines(new Set())
-        localStorage.setItem('completed_routines', JSON.stringify({ date: today, checks: [] }))
-      } else {
-        // 오늘 날짜면 기존 체크 불러오기
-        setCompletedRoutines(new Set(routineData.checks ?? []))
       }
-    } catch (error) {
-      console.error('Failed to load routine data:', error)
-      setCompletedRoutines(new Set())
-    }
+    })
   }, [isMounted])
 
   // 스크롤 이벤트
@@ -417,26 +362,13 @@ export default function HomePage() {
     window.dispatchEvent(new CustomEvent('scan-button-click'))
   }, [])
 
-  /**
-   * 점수 공유하기
-   */
-  const shareScore = useCallback(() => {
-    if (!latestRecord) return
-    // 커뮤니티 페이지로 이동
-    router.push('/community')
-  }, [latestRecord, router])
-
   // ==================== 계산된 값 ====================
 
   const greeting = isMounted ? getTimeBasedGreeting(currentHour) : { text: '안녕하세요', emoji: '👋' }
-  const scoreDiff = latestRecord && previousRecord
-    ? latestRecord.totalScore - previousRecord.totalScore
-    : null
 
   // 동년배 상위 그룹 평균 점수 계산 (Mock)
   const getPeerAverageScore = (userScore: number): number => {
-    // 상위 10% 평균을 사용자 점수보다 높게 설정 (비교 심리)
-    return Math.min(100, userScore + 15 + Math.floor(Math.random() * 10))
+    return Math.min(100, userScore + 18)
   }
 
   // 가장 낮은 항목 찾기 (개선 포인트)
@@ -761,6 +693,16 @@ export default function HomePage() {
           </div>
         </motion.div>
 
+        {/* 피부 쌍둥이 위젯 */}
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 },
+          }}
+        >
+          <SkinTwinWidget />
+        </motion.div>
+
         {/* 데일리 루틴 체크 */}
         <motion.div
           variants={{
@@ -901,7 +843,7 @@ export default function HomePage() {
                   투명한 가격 정보
                 </p>
                 <p className="text-gray-400 text-xs">
-                  내 피부 고민인 <span className="text-[#00FFC2] font-medium">'{latestRecord.primaryConcern ?? '피부 관리'}'</span>, 주변 병원 시술가는 얼마일까요?
+                  내 피부 고민인 <span className="text-[#00FFC2] font-medium">&lsquo;{latestRecord.primaryConcern ?? '피부 관리'}&rsquo;</span>, 주변 병원 시술가는 얼마일까요?
                 </p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#00FFC2] transition-colors flex-shrink-0" />

@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { formatPrice } from '@/lib/utils'
 
 // Leaflet 기본 아이콘 경로 설정 (SSR 이슈 해결)
+type LeafletIconPrototype = L.Icon.Default & {
+  _getIconUrl?: () => string
+}
+
 if (typeof window !== 'undefined') {
-  delete (L.Icon.Default.prototype as any)._getIconUrl
+  const iconPrototype = L.Icon.Default.prototype as LeafletIconPrototype
+  delete iconPrototype._getIconUrl
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -44,17 +49,15 @@ interface MapProps {
 }
 
 // 커스텀 마커 아이콘 생성
-const createCustomIcon = (hospital: HospitalData): L.DivIcon => {
-  // 대표 시술(isMain: true) 또는 첫 번째 이벤트 선택
-  const mainEvent = hospital.events.find((e) => e.isMain) || hospital.events[0]
+const createCustomIcon = (hospital: HospitalData, isSelected = false): L.DivIcon => {
   const minPrice = Math.min(...hospital.events.map((e) => e.eventPrice))
 
   const iconHtml = `
     <div class="relative">
-      <div class="bg-[#00FFC2] text-black font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap text-sm relative z-10">
+      <div class="${isSelected ? 'bg-white text-black' : 'bg-[#00FFC2] text-black'} font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap text-sm relative z-10">
         ${formatPrice(minPrice)}~
       </div>
-      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-[#00FFC2] rotate-45 border-r-2 border-b-2 border-white"></div>
+      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 ${isSelected ? 'bg-white' : 'bg-[#00FFC2]'} rotate-45 border-r-2 border-b-2 border-white"></div>
     </div>
   `
 
@@ -79,8 +82,6 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
 }
 
 export default function Map({ hospitals, onMarkerClick, selectedHospitalId }: MapProps) {
-  const mapRef = useRef<L.Map | null>(null)
-
   // 서울 강남역 좌표
   const center: [number, number] = [37.498095, 127.027610]
   const zoom = 15
@@ -111,7 +112,7 @@ export default function Map({ hospitals, onMarkerClick, selectedHospitalId }: Ma
           <Marker
             key={hospital.id}
             position={hospital.location}
-            icon={createCustomIcon(hospital)}
+            icon={createCustomIcon(hospital, hospital.id === selectedHospitalId)}
             eventHandlers={{
               click: () => {
                 onMarkerClick?.(hospital)

@@ -5,7 +5,6 @@ import { ArrowLeft, ChevronRight, Mail, FileText, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { clearSkinRecords } from '@/app/utils/storage'
 
 type SkinType = '건성' | '지성' | '복합성' | '민감성'
 
@@ -21,27 +20,36 @@ export default function SettingsPage() {
 
   // localStorage에서 설정 불러오기
   useEffect(() => {
-    try {
-      const storedName = localStorage.getItem('userName') || '사용자'
-      setUserName(storedName)
-      setNewNickname(storedName)
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      try {
+        const storedName = localStorage.getItem('userName') || '사용자'
+        setUserName(storedName)
+        setNewNickname(storedName)
 
-      const storedSkinType = localStorage.getItem('skin_type') as SkinType | null
-      if (storedSkinType && ['건성', '지성', '복합성', '민감성'].includes(storedSkinType)) {
-        setSkinType(storedSkinType)
-      }
+        const storedSkinType = localStorage.getItem('skin_type') as SkinType | null
+        if (storedSkinType && ['건성', '지성', '복합성', '민감성'].includes(storedSkinType)) {
+          setSkinType(storedSkinType)
+        }
 
-      const storedPush = localStorage.getItem('push_notification')
-      if (storedPush !== null) {
-        setPushNotification(storedPush === 'true')
-      }
+        const storedPush = localStorage.getItem('push_notification')
+        if (storedPush !== null) {
+          setPushNotification(storedPush === 'true')
+        }
 
-      const storedNightMode = localStorage.getItem('night_mode_restriction')
-      if (storedNightMode !== null) {
-        setNightModeRestriction(storedNightMode === 'true')
+        const storedNightMode = localStorage.getItem('night_mode_restriction')
+        if (storedNightMode !== null) {
+          setNightModeRestriction(storedNightMode === 'true')
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error)
       }
-    } catch (error) {
-      console.error('Failed to load settings:', error)
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
     }
   }, [])
 
@@ -57,6 +65,7 @@ export default function SettingsPage() {
       setShowNicknameModal(false)
       toast.success('닉네임이 변경되었습니다')
     } catch (error) {
+      console.error('닉네임 변경 실패:', error)
       toast.error('닉네임 변경에 실패했습니다')
     }
   }
@@ -69,6 +78,7 @@ export default function SettingsPage() {
       setShowSkinTypeModal(false)
       toast.success(`피부 타입이 '${type}'으로 설정되었습니다`)
     } catch (error) {
+      console.error('피부 타입 설정 실패:', error)
       toast.error('피부 타입 설정에 실패했습니다')
     }
   }
@@ -116,6 +126,7 @@ export default function SettingsPage() {
         router.push('/')
       }, 1500)
     } catch (error) {
+      console.error('데이터 삭제 실패:', error)
       toast.error('데이터 삭제에 실패했습니다')
     }
   }
@@ -377,6 +388,7 @@ export default function SettingsPage() {
     </div>
   )
 }
+
 
 
 

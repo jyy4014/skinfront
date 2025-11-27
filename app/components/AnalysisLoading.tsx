@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ScanLine, Activity, Scan } from 'lucide-react'
 
 interface AnalysisLoadingProps {
   isVisible?: boolean
@@ -20,6 +19,38 @@ const loadingMessages = [
 export default function AnalysisLoading({ isVisible = true, remainingCount }: AnalysisLoadingProps) {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const [progress, setProgress] = useState(0)
+  const [remaining, setRemaining] = useState<number | undefined>(undefined)
+  const isClient = typeof window !== 'undefined'
+
+  // 클라이언트 마운트 후 remaining 계산 (Hydration 에러 방지)
+  useEffect(() => {
+    if (!isClient) {
+      return
+    }
+
+    let cancelled = false
+    const frame = window.requestAnimationFrame(() => {
+      if (cancelled) return
+
+      if (remainingCount !== undefined) {
+        setRemaining(remainingCount)
+        return
+      }
+
+      try {
+        const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
+        const nextAdAt = Math.ceil((analysisCount + 1) / 3) * 3
+        setRemaining(Math.max(0, nextAdAt - analysisCount - 1))
+      } catch {
+        setRemaining(undefined)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(frame)
+    }
+  }, [isClient, remainingCount])
 
   // 메시지 순환 (1.2초마다 변경)
   useEffect(() => {
@@ -35,7 +66,6 @@ export default function AnalysisLoading({ isVisible = true, remainingCount }: An
   // 프로그레스 바 (5초 동안 0%에서 100%)
   useEffect(() => {
     if (!isVisible) {
-      setProgress(0)
       return
     }
 
@@ -56,21 +86,14 @@ export default function AnalysisLoading({ isVisible = true, remainingCount }: An
     return () => clearInterval(timer)
   }, [isVisible])
 
-  // 다음 광고까지 남은 횟수 계산
-  const getRemainingCount = () => {
-    if (remainingCount !== undefined) {
-      return remainingCount
+  useEffect(() => {
+    if (isVisible) {
+      return
     }
-    try {
-      const analysisCount = parseInt(localStorage.getItem('analysis_count') || '0', 10)
-      const nextAdAt = Math.ceil((analysisCount + 1) / 3) * 3
-      return Math.max(0, nextAdAt - analysisCount - 1)
-    } catch {
-      return undefined
-    }
-  }
 
-  const remaining = getRemainingCount()
+    const frame = window.requestAnimationFrame(() => setProgress(0))
+    return () => window.cancelAnimationFrame(frame)
+  }, [isVisible])
 
   if (!isVisible) return null
 
@@ -81,8 +104,8 @@ export default function AnalysisLoading({ isVisible = true, remainingCount }: An
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center"
     >
-      {/* 남은 횟수 뱃지 (우측 상단) */}
-      {remaining !== undefined && remaining > 0 && (
+      {/* 남은 횟수 뱃지 (우측 상단) - 클라이언트에서만 렌더링 */}
+      {isClient && remaining !== undefined && remaining > 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}

@@ -9,8 +9,13 @@ import { formatPrice } from '@/lib/utils'
 import { Crosshair, Loader2 } from 'lucide-react'
 
 // Leaflet 기본 아이콘 경로 설정 (SSR 이슈 해결)
+type LeafletIconPrototype = L.Icon.Default & {
+  _getIconUrl?: () => string
+}
+
 if (typeof window !== 'undefined') {
-  delete (L.Icon.Default.prototype as any)._getIconUrl
+  const iconPrototype = L.Icon.Default.prototype as LeafletIconPrototype
+  delete iconPrototype._getIconUrl
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -49,16 +54,20 @@ interface RealMapProps {
 }
 
 // 커스텀 마커 아이콘 생성 (민트색 말풍선 핀)
-const createCustomIcon = (hospital: HospitalData): L.DivIcon => {
+const createCustomIcon = (hospital: HospitalData, isSelected = false): L.DivIcon => {
   // 최저가 계산
   const minPrice = Math.min(...hospital.events.map((e) => e.eventPrice))
 
   const iconHtml = `
     <div class="relative">
-      <div class="bg-[#00FFC2] text-black font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap text-sm relative z-10">
+      <div class="${
+        isSelected ? 'bg-white text-black' : 'bg-[#00FFC2] text-black'
+      } font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap text-sm relative z-10">
         ${formatPrice(minPrice)}~
       </div>
-      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-[#00FFC2] rotate-45 border-r-2 border-b-2 border-white"></div>
+      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 ${
+        isSelected ? 'bg-white' : 'bg-[#00FFC2]'
+      } rotate-45 border-r-2 border-b-2 border-white"></div>
     </div>
   `
 
@@ -72,7 +81,7 @@ const createCustomIcon = (hospital: HospitalData): L.DivIcon => {
 }
 
 // 커스텀 클러스터 아이콘 생성 함수
-const createCustomClusterIcon = (cluster: any): L.DivIcon => {
+const createCustomClusterIcon = (cluster: L.MarkerCluster): L.DivIcon => {
   const count = cluster.getChildCount()
   const size = count < 10 ? 40 : count < 100 ? 50 : 60
 
@@ -167,7 +176,7 @@ export default function RealMap({ hospitals, selectedId, onMarkerClick, flyToLoc
 
   // 강남역 좌표 (기본값)
   const defaultCenter: [number, number] = [37.4979, 127.0276]
-  const center = myLocation || defaultCenter
+const center = myLocation || defaultCenter
   const zoom = 15
 
   // GPS 위치 가져오기 함수
@@ -251,7 +260,7 @@ export default function RealMap({ hospitals, selectedId, onMarkerClick, flyToLoc
 
         {/* 지도 중심 조정 및 flyTo 핸들링 */}
         <MapController 
-          center={defaultCenter} 
+          center={center} 
           zoom={zoom}
           flyToLocation={flyToLocation}
           onMapReady={handleMapReady}
@@ -272,7 +281,7 @@ export default function RealMap({ hospitals, selectedId, onMarkerClick, flyToLoc
             <Marker
               key={hospital.id}
               position={hospital.location}
-              icon={createCustomIcon(hospital)}
+              icon={createCustomIcon(hospital, hospital.id === selectedId)}
               eventHandlers={{
                 click: () => {
                   onMarkerClick?.(hospital)

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { POST } from '../route'
 import { NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -320,6 +322,7 @@ describe('POST /api/analyze', () => {
     })
   })
 })
+
 
 
 

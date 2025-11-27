@@ -83,7 +83,6 @@ export function saveSkinRecord(record: Omit<SkinAnalysisRecord, 'id'>): boolean 
     const existingRecords = getSkinRecords()
 
     // 중복 체크: 같은 날짜와 점수로 저장된 기록이 있는지 확인
-    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD 형식
     const recordDate = new Date(record.date).toISOString().split('T')[0]
 
     // 오늘 날짜의 기록이 이미 있는지 확인 (점수 차이가 5점 이내면 중복으로 간주)

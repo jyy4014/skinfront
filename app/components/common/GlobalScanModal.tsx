@@ -39,13 +39,22 @@ export default function GlobalScanModal() {
   useEffect(() => {
     if (isScanOpen) {
       document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-      setIsAnimationComplete(false) // 모달이 닫히면 리셋
+      return () => {
+        document.body.style.overflow = ''
+      }
     }
-    return () => {
-      document.body.style.overflow = ''
+
+    document.body.style.overflow = ''
+    return undefined
+  }, [isScanOpen])
+
+  useEffect(() => {
+    if (isScanOpen) {
+      return
     }
+
+    const frame = window.requestAnimationFrame(() => setIsAnimationComplete(false))
+    return () => window.cancelAnimationFrame(frame)
   }, [isScanOpen])
 
   // 🎬 모달 애니메이션 완료 후 카메라 초기화 (500ms 딜레이)

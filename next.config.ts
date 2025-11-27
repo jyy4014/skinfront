@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.supabase.in',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
     // blob URL과 data URL은 unoptimized로 처리 (이미 최적화됨)
     unoptimized: false,

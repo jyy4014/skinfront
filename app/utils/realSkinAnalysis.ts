@@ -10,6 +10,13 @@ export interface SkinDetail {
   grade: SkinGrade
 }
 
+// MediaPipe FaceMesh 랜드마크 타입
+export interface Landmark {
+  x: number
+  y: number
+  z?: number
+}
+
 export interface RealSkinAnalysisResult {
   totalScore: number // 0-100 (종합 점수)
   details: {
@@ -112,7 +119,7 @@ function extractPixelSamples(
  * 여러 랜드마크 포인트의 중심 좌표 계산
  */
 function getCenterPoint(
-  landmarks: any[],
+  landmarks: Landmark[],
   indices: readonly number[],
   width: number,
   height: number
@@ -228,7 +235,7 @@ function getKoreanName(key: 'pigmentation' | 'pores' | 'wrinkles' | 'acne'): str
  */
 export async function analyzeSkinCondition(
   imageSrc: string,
-  landmarks: any[]
+  landmarks: Landmark[]
 ): Promise<RealSkinAnalysisResult> {
   try {
     // 디버깅: 랜드마크 확인

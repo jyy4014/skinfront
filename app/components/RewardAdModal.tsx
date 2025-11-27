@@ -16,18 +16,25 @@ export default function RewardAdModal({ isOpen, onClose }: RewardAdModalProps) {
   const [canClose, setCanClose] = useState(false)
 
   useEffect(() => {
-    if (!isOpen) {
-      // 모달이 닫히면 상태 초기화
+    if (isOpen) {
+      return
+    }
+    const frame = window.requestAnimationFrame(() => {
       setCountdown(5)
       setCanClose(false)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
       return
     }
 
-    // 카운트다운 시작
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer)
+          window.clearInterval(timer)
           setCanClose(true)
           return 0
         }
@@ -35,7 +42,7 @@ export default function RewardAdModal({ isOpen, onClose }: RewardAdModalProps) {
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => window.clearInterval(timer)
   }, [isOpen])
 
   if (!isOpen) return null
@@ -171,7 +178,7 @@ export default function RewardAdModal({ isOpen, onClose }: RewardAdModalProps) {
                 className="w-full py-4 px-6 bg-gradient-to-r from-[#00FFC2] via-[#FFD700] to-[#00FFC2] text-black font-bold rounded-xl shadow-lg shadow-[#00FFC2]/40 hover:shadow-[#00FFC2]/60 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg"
               >
                 <Hospital className="w-6 h-6" />
-                <span>🏥 제휴 병원 예약하고 '평생 무제한' 이용권 받기</span>
+                <span>🏥 제휴 병원 예약하고 &lsquo;평생 무제한&rsquo; 이용권 받기</span>
               </motion.button>
             </motion.div>
           </motion.div>

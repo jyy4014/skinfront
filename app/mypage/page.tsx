@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Dot } from 'recharts'
+import { useState, useEffect, useCallback } from 'react'
+import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle, Sparkles } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
@@ -62,18 +62,29 @@ interface Reservation {
   reviewWritten?: boolean // 후기 작성 여부
 }
 
+interface MentorTip {
+  id: string
+  skin_score: number
+  primary_concern: string
+  procedure_name?: string | null
+  comment: string
+  created_at: string
+  likes_count?: number | null
+}
+
 export default function MyPage() {
   const router = useRouter()
   const [userName, setUserName] = useState('사용자')
   const [analysisRecords, setAnalysisRecords] = useState<AnalysisRecord[]>([])
   const [chartData, setChartData] = useState<ChartData[]>([])
-  const [activeTab, setActiveTab] = useState<'report' | 'booking'>('report')
+  const [activeTab, setActiveTab] = useState<'report' | 'booking' | 'mentor'>('report')
   const [isMounted, setIsMounted] = useState(false)
   const [reservations, setReservations] = useState<Reservation[]>([])
+const [mentorTips, setMentorTips] = useState<MentorTip[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Supabase DB에서 분석 기록 불러오기
-  const loadAnalysisRecords = async () => {
+  const loadAnalysisRecords = useCallback(async () => {
     try {
       setIsLoading(true)
 
@@ -89,10 +100,11 @@ export default function MyPage() {
       }
       setUserName(storedName)
 
-      // Supabase에서 데이터 가져오기
+      // Supabase에서 데이터 가져오기 (활성화된 기록만)
       const { data: dbRecords, error: dbError } = await supabase
         .from('skin_reports')
         .select('*')
+        .eq('is_active', true)
         .order('created_at', { ascending: false })
 
       if (dbError) {
@@ -171,7 +183,36 @@ export default function MyPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  // 멘토 팁 불러오기
+  const loadMentorTips = useCallback(async () => {
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
+      if (!userId) {
+        setMentorTips([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('mentor_tips')
+        .select('id, skin_score, primary_concern, procedure_name, comment, created_at, likes_count')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('멘토 팁 로드 실패:', error)
+        toast.error('멘토 팁을 불러오는 중 오류가 발생했습니다.')
+        setMentorTips([])
+        return
+      }
+
+      setMentorTips((data as MentorTip[]) || [])
+    } catch (error) {
+      console.error('멘토 팁 로드 에러:', error)
+      setMentorTips([])
+    }
+  }, [])
 
   // Hydration 방지
   useEffect(() => {
@@ -179,7 +220,7 @@ export default function MyPage() {
   }, [])
 
   // 예약 데이터 로드
-  const loadReservations = () => {
+  const loadReservations = useCallback(() => {
     if (!isMounted) return
     
     try {
@@ -236,13 +277,14 @@ export default function MyPage() {
       console.error('Failed to load reservations:', error)
       setReservations([])
     }
-  }
+  }, [isMounted])
 
   useEffect(() => {
     if (!isMounted) return
 
     loadAnalysisRecords()
     loadReservations()
+    loadMentorTips()
 
     // 페이지 포커스 시 데이터 새로고침
     const handleFocus = () => {
@@ -263,7 +305,7 @@ export default function MyPage() {
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('storage', handleStorageChange)
     }
-  }, [isMounted])
+  }, [isMounted, loadAnalysisRecords, loadReservations, loadMentorTips])
 
   // 날짜 포맷팅 (예: "11.25(월)" 또는 같은 날짜면 "11.25(월) 14:30")
   const formatDate = (dateString: string, allRecords: AnalysisRecord[]): string => {
@@ -404,6 +446,15 @@ export default function MyPage() {
             <Ticket className="w-4 h-4" />
             <span>예약 확인</span>
           </button>
+          <button
+            onClick={() => setActiveTab('mentor')}
+            className={`relative flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-sm transition-colors z-10 ${
+              activeTab === 'mentor' ? 'text-black' : 'text-gray-400'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>내 꿀팁</span>
+          </button>
           
           {/* 하이라이트 바 */}
           <motion.div
@@ -411,8 +462,8 @@ export default function MyPage() {
             className="absolute top-1 bottom-1 bg-[#00FFC2] rounded-lg z-0"
             initial={false}
             animate={{
-              left: activeTab === 'report' ? '4px' : '50%',
-              width: 'calc(50% - 4px)',
+              left: activeTab === 'report' ? '4px' : activeTab === 'booking' ? 'calc(33.333% + 2px)' : 'calc(66.666% + 2px)',
+              width: 'calc(33.333% - 4px)',
             }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           />
@@ -574,7 +625,7 @@ export default function MyPage() {
         )}
       </div>
           </motion.div>
-        ) : (
+        ) : activeTab === 'booking' ? (
           <motion.div
             key="booking"
             initial={{ opacity: 0, y: 20 }}
@@ -723,6 +774,71 @@ export default function MyPage() {
                       [테스트] 예약 생성
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="mentor"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* 내가 남긴 꿀팁 모아보기 */}
+            <div className="px-6 pb-8">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white mb-2">내가 남긴 꿀팁</h2>
+                <p className="text-gray-400 text-sm">
+                  다른 사용자들에게 공유한 멘토 팁을 확인해보세요
+                </p>
+              </div>
+
+              {mentorTips.length > 0 ? (
+                <div className="space-y-4">
+                  {mentorTips.map((tip) => (
+                    <motion.div
+                      key={tip.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-br from-gray-900 to-slate-800 rounded-xl p-5 border border-[#00FFC2]/30 shadow-lg"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[#00FFC2] font-bold text-lg">{tip.skin_score}점</span>
+                            <span className="text-gray-500">|</span>
+                            <span className="text-white font-semibold">{tip.primary_concern}</span>
+                            {tip.procedure_name && (
+                              <>
+                                <span className="text-gray-500">|</span>
+                                <span className="text-gray-300 text-sm">{tip.procedure_name}</span>
+                              </>
+                            )}
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed mb-3">
+                            {tip.comment}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>{new Date(tip.created_at).toLocaleDateString('ko-KR')}</span>
+                            <div className="flex items-center gap-1">
+                              <span>👍</span>
+                              <span>{tip.likes_count || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-[#1A2333] rounded-xl p-8 border border-gray-800 text-center">
+                  <Sparkles className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm mb-2">아직 남긴 팁이 없습니다</p>
+                  <p className="text-gray-500 text-xs">
+                    리포트 페이지에서 멘토 팁을 남겨보세요!
+                  </p>
                 </div>
               )}
             </div>

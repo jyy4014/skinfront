@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { ArrowLeft, Image as ImageIcon, Tag, FileText, X, CheckCircle2, Building2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { getRecentSkinRecords, type SkinAnalysisRecord } from '../../utils/storage'
 import { useToastContext } from '../../components/common/ToastProvider'
 import { formatRecordDate } from '@/lib/utils'
@@ -29,6 +30,27 @@ interface AttachedReport {
   record: SkinAnalysisRecord
 }
 
+const mockImagePool = [
+  {
+    url: 'https://images.unsplash.com/photo-1616394584738-fc6e612e781b?q=80&w=400&auto=format&fit=crop',
+    name: '피부 사진 1.jpg',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop',
+    name: '피부 사진 2.jpg',
+  },
+]
+
+let uniqueIdCounter = 0
+const generateUniqueId = (prefix: string) => `${prefix}_${uniqueIdCounter++}`
+
+let mockImageCursor = 0
+const getNextMockImage = () => {
+  const image = mockImagePool[mockImageCursor % mockImagePool.length]
+  mockImageCursor += 1
+  return image
+}
+
 // useSearchParams를 사용하는 내부 컴포넌트
 function WritePageContent() {
   const router = useRouter()
@@ -49,28 +71,32 @@ function WritePageContent() {
 
   // URL 쿼리 파라미터에서 예약 정보 추출
   useEffect(() => {
-    const type = searchParams.get('type')
-    const bookingId = searchParams.get('bookingId')
-    const hospitalName = searchParams.get('hospitalName') || searchParams.get('hospital')
-    const procedure = searchParams.get('procedure') || searchParams.get('treatment')
-    const visitDate = searchParams.get('visitDate')
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      const type = searchParams.get('type')
+      const bookingId = searchParams.get('bookingId')
+      const hospitalName = searchParams.get('hospitalName') || searchParams.get('hospital')
+      const procedure = searchParams.get('procedure') || searchParams.get('treatment')
+      const visitDate = searchParams.get('visitDate')
 
-    // 예약 기반 후기 작성인 경우
-    if (type === 'review' && hospitalName && procedure) {
-      setCategory('review')
-      setIsVerifiedReview(true)
-      setBookingInfo({
-        bookingId: bookingId || '',
-        hospitalName,
-        procedure,
-        visitDate: visitDate || '',
-      })
+      if (type === 'review' && hospitalName && procedure) {
+        setCategory('review')
+        setIsVerifiedReview(true)
+        setBookingInfo({
+          bookingId: bookingId || '',
+          hospitalName,
+          procedure,
+          visitDate: visitDate || '',
+        })
+        setTitle(`[후기] ${procedure} 솔직 후기`)
+        setTags([procedure, hospitalName])
+      }
+    }, 0)
 
-      // 제목 템플릿 자동완성
-      setTitle(`[후기] ${procedure} 솔직 후기`)
-      
-      // 관련 태그 자동 추가
-      setTags([procedure, hospitalName])
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
     }
   }, [searchParams])
 
@@ -93,7 +119,7 @@ function WritePageContent() {
 
       const latestRecord = records[0]
       setAttachedReport({
-        id: `report_${Date.now()}`,
+        id: generateUniqueId('report'),
         record: latestRecord,
       })
 
@@ -109,25 +135,15 @@ function WritePageContent() {
 
   // 사진 첨부 (Mock)
   const handleAttachImage = () => {
-    // Mock 이미지 URL (실제로는 파일 선택 후 업로드)
-    const mockImages = [
-      {
-        id: `img_${Date.now()}`,
-        url: 'https://images.unsplash.com/photo-1616394584738-fc6e612e781b?q=80&w=400&auto=format&fit=crop',
-        name: '피부 사진 1.jpg',
-      },
-      {
-        id: `img_${Date.now() + 1}`,
-        url: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop',
-        name: '피부 사진 2.jpg',
-      },
-    ]
-
-    const randomImage = mockImages[Math.floor(Math.random() * mockImages.length)]
-    setAttachedImages((prev) => [...prev, randomImage])
+    const randomImage = getNextMockImage()
+    const imageWithId: AttachedImage = {
+      id: generateUniqueId('img'),
+      ...randomImage,
+    }
+    setAttachedImages((prev) => [...prev, imageWithId])
 
     // 이미지 마크다운을 본문에 삽입
-    const imageMarkdown = `\n\n![${randomImage.name}](${randomImage.url})\n`
+    const imageMarkdown = `\n\n![${imageWithId.name}](${imageWithId.url})\n`
     setContent((prev) => prev + imageMarkdown)
 
     success('📷 사진이 첨부되었습니다.', 2000)
@@ -363,9 +379,11 @@ function WritePageContent() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="relative flex-shrink-0"
               >
-                <img
+                <Image
                   src={img.url}
                   alt={img.name}
+                  width={96}
+                  height={96}
                   className="w-24 h-24 rounded-lg object-cover border border-gray-700"
                 />
                 <button

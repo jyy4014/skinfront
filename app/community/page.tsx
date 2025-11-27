@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Search, Filter, X, FileText, Sparkles, Calendar, TrendingUp, ArrowLeft, ChevronDown } from 'lucide-react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { Plus, Search, Filter, X, FileText, Sparkles, Calendar, ArrowLeft, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { getSkinRecords, getRecentSkinRecords, type SkinAnalysisRecord } from '../utils/storage'
+import { getSkinRecords, type SkinAnalysisRecord } from '../utils/storage'
 import AuthorProfileBadges from '../components/community/AuthorProfileBadges'
+import { formatRecordDate } from '@/lib/utils'
 
 // 게시글 타입
 interface Post {
@@ -157,8 +158,6 @@ const concernToTags: Record<string, string[]> = {
   여드름: ['여드름', '트러블', '흉터'],
 }
 
-import { formatRecordDate } from '@/lib/utils'
-
 // 최근 검색어 관리
 const SEARCH_HISTORY_KEY = 'community_search_history'
 const MAX_SEARCH_HISTORY = 10
@@ -289,7 +288,6 @@ export default function CommunityPage() {
   const [attachReport, setAttachReport] = useState(false)
   const [recentRecord, setRecentRecord] = useState<SkinAnalysisRecord | null>(null)
   const [personalizedTags, setPersonalizedTags] = useState<string[]>([])
-  const [filteredPosts, setFilteredPosts] = useState<Post[]>(mockPosts)
   const [hasRecords, setHasRecords] = useState(false)
 
   // 검색 관련 상태
@@ -305,61 +303,70 @@ export default function CommunityPage() {
 
   // 사용자 진단 기록 불러오기 및 스마트 필터링 로직
   useEffect(() => {
-    try {
-      const storedName = localStorage.getItem('userName') || '회원'
-      setUserName(storedName)
+    let isMounted = true
+    const timer = window.setTimeout(() => {
+      if (!isMounted) return
+      try {
+        const storedName = localStorage.getItem('userName') || '회원'
+        setUserName(storedName)
 
-      // localStorage에서 모든 기록 불러오기
-      const allRecords = getSkinRecords()
-      setHasRecords(allRecords.length > 0)
+        // localStorage에서 모든 기록 불러오기
+        const allRecords = getSkinRecords()
+        setHasRecords(allRecords.length > 0)
 
-      // 피부 타입 설정: 설정 페이지에서 설정한 값 우선 사용
-      const storedSkinType = localStorage.getItem('skin_type')
-      if (storedSkinType) {
-        // 한국어 -> 영어 매핑
-        const skinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
-          건성: 'Dry',
-          지성: 'Oily',
-          복합성: 'Combination',
-          민감성: 'Sensitive',
+        // 피부 타입 설정: 설정 페이지에서 설정한 값 우선 사용
+        const storedSkinType = localStorage.getItem('skin_type')
+        if (storedSkinType) {
+          // 한국어 -> 영어 매핑
+          const skinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
+            건성: 'Dry',
+            지성: 'Oily',
+            복합성: 'Combination',
+            민감성: 'Sensitive',
+          }
+          setMySkinType(skinTypeMap[storedSkinType] || null)
+        } else if (allRecords.length > 0) {
+          // 설정이 없으면 진단 기록 기반으로 추정
+          const latestRecord = allRecords[0]
+          const concernToSkinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
+            기미: 'Dry',
+            모공: 'Oily',
+            주름: 'Combination',
+            여드름: 'Sensitive',
+          }
+          setMySkinType(concernToSkinTypeMap[latestRecord.primaryConcern] || 'Normal')
         }
-        setMySkinType(skinTypeMap[storedSkinType] || null)
-      } else if (allRecords.length > 0) {
-        // 설정이 없으면 진단 기록 기반으로 추정
-        const latestRecord = allRecords[0]
-        const concernToSkinTypeMap: Record<string, 'Dry' | 'Oily' | 'Combination' | 'Sensitive' | 'Normal'> = {
-          기미: 'Dry',
-          모공: 'Oily',
-          주름: 'Combination',
-          여드름: 'Sensitive',
+
+        // 진단 기록 기반 맞춤 태그 및 필터 설정
+        if (allRecords.length > 0) {
+          const latestRecord = allRecords[0]
+          setMyConcern(latestRecord.primaryConcern)
+          setRecentRecord(latestRecord)
+
+          // 진단 결과 기반 맞춤 태그 생성
+          const tags = concernToTags[latestRecord.primaryConcern] || []
+          setPersonalizedTags(tags)
+          setSelectedTags(tags) // 기본적으로 맞춤 태그 선택
+          setSelectedFilter('personalized') // 맞춤 필터 활성화
+        } else {
+          // Case B: 진단 기록 없음 - 실시간 인기 기본값
+          setSelectedFilter('trending')
+          setSelectedTags([]) // 모든 게시글 표시
         }
-        setMySkinType(concernToSkinTypeMap[latestRecord.primaryConcern] || 'Normal')
-      }
 
-      // 진단 기록 기반 맞춤 태그 및 필터 설정
-      if (allRecords.length > 0) {
-        const latestRecord = allRecords[0]
-        setMyConcern(latestRecord.primaryConcern)
-        setRecentRecord(latestRecord)
-
-        // 진단 결과 기반 맞춤 태그 생성
-        const tags = concernToTags[latestRecord.primaryConcern] || []
-        setPersonalizedTags(tags)
-        setSelectedTags(tags) // 기본적으로 맞춤 태그 선택
-        setSelectedFilter('personalized') // 맞춤 필터 활성화
-      } else {
-        // Case B: 진단 기록 없음 - 실시간 인기 기본값
+        // 최근 검색어 불러오기
+        setSearchHistory(getSearchHistory())
+      } catch (error) {
+        console.error('Failed to load user records:', error)
+        // 에러 발생 시 기본값으로 실시간 인기 설정
         setSelectedFilter('trending')
-        setSelectedTags([]) // 모든 게시글 표시
+        setSelectedTags([])
       }
+    }, 0)
 
-      // 최근 검색어 불러오기
-      setSearchHistory(getSearchHistory())
-    } catch (error) {
-      console.error('Failed to load user records:', error)
-      // 에러 발생 시 기본값으로 실시간 인기 설정
-      setSelectedFilter('trending')
-      setSelectedTags([])
+    return () => {
+      isMounted = false
+      window.clearTimeout(timer)
     }
   }, [])
 
@@ -372,26 +379,19 @@ export default function CommunityPage() {
     }
   }, [isSearchModalOpen])
 
-  // 통합 필터링 및 정렬 로직
-  useEffect(() => {
+  const filteredPosts = useMemo(() => {
     let filtered = [...mockPosts]
 
-    // 1. 검색어 필터링 (검색어가 있으면 우선 적용)
     if (searchQuery.trim()) {
       filtered = filtered.filter((post) => matchesSearchQuery(post, searchQuery))
-    } else {
-      // 2. 태그 필터링 (검색어가 없을 때만 적용)
-      if (selectedFilter === 'personalized' && selectedTags.length > 0) {
-        filtered = filtered.filter((post) => selectedTags.some((tag) => post.tags.includes(tag)))
-      }
+    } else if (selectedFilter === 'personalized' && selectedTags.length > 0) {
+      filtered = filtered.filter((post) => selectedTags.some((tag) => post.tags.includes(tag)))
     }
 
-    // 3. 내 피부 타입만 보기
     if (isMySkinTypeOnly && mySkinType) {
       filtered = filtered.filter((post) => post.authorSkinType === mySkinType)
     }
 
-    // 4. 시술별 필터링
     if (selectedProcedure) {
       filtered = filtered.filter((post) => {
         if (!post.relatedProcedure) return false
@@ -407,7 +407,6 @@ export default function CommunityPage() {
       })
     }
 
-    // 5. 정렬
     filtered.sort((a, b) => {
       switch (sortOption) {
         case 'popular':
@@ -420,7 +419,7 @@ export default function CommunityPage() {
       }
     })
 
-    setFilteredPosts(filtered)
+    return filtered
   }, [selectedTags, selectedFilter, searchQuery, isMySkinTypeOnly, mySkinType, selectedProcedure, sortOption])
 
   // 검색 실행
@@ -598,7 +597,7 @@ export default function CommunityPage() {
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-400">검색어:</span>
-            <span className="text-sm text-[#00FFC2] font-semibold">"{searchQuery}"</span>
+            <span className="text-sm text-[#00FFC2] font-semibold">&quot;{searchQuery}&quot;</span>
             <button
               onClick={() => setSearchQuery('')}
               className="p-1 rounded-full hover:bg-gray-800 transition-colors"
@@ -616,7 +615,7 @@ export default function CommunityPage() {
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-[#00FFC2]" />
               <p className="text-sm text-gray-300">
-                {userName}님의 <span className="text-[#00FFC2] font-semibold">'{recentRecord.primaryConcern}'</span> 고민 탈출을 위한 맞춤 글이에요
+                {userName}님의 <span className="text-[#00FFC2] font-semibold">&lsquo;{recentRecord.primaryConcern}&rsquo;</span> 고민 탈출을 위한 맞춤 글이에요
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
