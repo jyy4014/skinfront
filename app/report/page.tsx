@@ -165,12 +165,13 @@ function FaceImageWithMarkers({
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect()
-      setContainerSize({ width: rect.width, height: rect.height })
-    }
-  }, [imageUrl])
+  // Removed unused container size tracking
+  // useEffect(() => {
+  //   if (containerRef.current) {
+  //     const rect = containerRef.current.getBoundingClientRect()
+  //     setContainerSize({ width: rect.width, height: rect.height })
+  //   }
+  // }, [imageUrl])
 
   // 랜드마크 인덱스로 화면 좌표 계산
   const getMarkerPosition = (landmarkIndex: number | null): { x: number; y: number } | null => {

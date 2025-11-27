@@ -81,7 +81,7 @@ const createCustomIcon = (hospital: HospitalData, isSelected = false): L.DivIcon
 }
 
 // 커스텀 클러스터 아이콘 생성 함수
-const createCustomClusterIcon = (cluster: L.MarkerCluster): L.DivIcon => {
+const createCustomClusterIcon = (cluster: any): L.DivIcon => {
   const count = cluster.getChildCount()
   const size = count < 10 ? 40 : count < 100 ? 50 : 60
 

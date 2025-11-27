@@ -11,35 +11,43 @@ export default function AuthCallbackPage() {
     useEffect(() => {
         const handleCallback = async () => {
             console.log('[Auth Callback Client] Starting client-side callback handler')
+            console.log('[Auth Callback Client] Current URL:', window.location.href)
+            console.log('[Auth Callback Client] Hash:', window.location.hash)
 
-            // Implicit 플로우에서는 Supabase가 자동으로 URL fragment를 처리
-            // 잠시 기다렸다가 세션 상태 확인
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            try {
+                // Implicit 플로우: URL fragment에 세션 정보가 포함됨
+                // Supabase가 자동으로 fragment를 처리하므로 getSession()으로 확인
+                const { data: { session }, error } = await supabase.auth.getSession()
 
-            const { data: { session }, error } = await supabase.auth.getSession()
+                console.log('[Auth Callback Client] Session check:', {
+                    hasSession: !!session,
+                    error: error?.message,
+                    userId: session?.user?.id,
+                    accessToken: session?.access_token ? 'present' : 'missing'
+                })
 
-            console.log('[Auth Callback Client] Session check:', {
-                hasSession: !!session,
-                error: error?.message,
-                userId: session?.user?.id
-            })
+                if (error) {
+                    console.error('[Auth Callback Client] Auth error:', error)
+                    router.push('/login?error=auth_failed')
+                    return
+                }
 
-            if (error) {
-                console.error('[Auth Callback Client] Error:', error)
-                router.push('/login?error=auth_failed')
-                return
-            }
-
-            if (session) {
-                console.log('[Auth Callback Client] Session established, redirecting to home')
-                router.push('/')
-            } else {
-                console.log('[Auth Callback Client] No session, redirecting to login')
-                router.push('/login')
+                if (session && session.access_token) {
+                    console.log('[Auth Callback Client] Session established successfully')
+                    router.push('/')
+                } else {
+                    console.log('[Auth Callback Client] No valid session found')
+                    router.push('/login?error=no_session')
+                }
+            } catch (err) {
+                console.error('[Auth Callback Client] Unexpected error:', err)
+                router.push('/login?error=client_error')
             }
         }
 
-        handleCallback()
+        // 페이지 로드 후 바로 실행하되 약간의 지연을 줌
+        const timer = setTimeout(handleCallback, 500)
+        return () => clearTimeout(timer)
     }, [router])
 
     return (

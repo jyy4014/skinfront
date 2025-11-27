@@ -325,11 +325,11 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
             }
 
             // 얼굴 감지 상태 업데이트
-            setIsFaceDetected(faceDetected)
+            // setIsFaceDetected(faceDetected) // Removed unused state setter
           } else {
             // 얼굴이 감지되지 않음 - 위치/조명 가이드 제공
             if (!currentMockMode) {
-              setIsFaceDetected(false)
+              // setIsFaceDetected(false) // Removed unused state setter
               setFaceDetectionStartTime(null)
               faceDetectionDurationRef.current = 0
               faceAlignmentStartTimeRef.current = null
@@ -343,7 +343,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
               }
             } else {
               // Mock 모드: 얼굴이 감지되지 않아도 정렬된 것으로 처리 (이미지 분석은 계속 진행)
-              setIsFaceDetected(true)
+              // setIsFaceDetected(true) // Removed unused state setter
               setFaceAlignment('aligned')
               const now = Date.now()
               if (faceAlignmentStartTimeRef.current === null) {
@@ -1008,7 +1008,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       setScanningStage('idle') // 초기 상태를 idle로 설정
       setBottomMessage('얼굴을 가이드 안에 맞춰주세요')
       // Mock 모드에서는 항상 얼굴이 감지되고 정렬된 것으로 간주
-      setIsFaceDetected(true)
+      // setIsFaceDetected(true) // Removed unused state setter
       setFaceAlignment('aligned')
       setGuideMessage('완벽해요! 움직이지 마세요 ✨')
       setGuideColor('mint')
@@ -1017,7 +1017,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
       faceDetectionDurationRef.current = 0
     } else if (!isMockMode) {
       // 실제 카메라 모드로 전환 시 얼굴 감지 상태 초기화
-      setIsFaceDetected(false)
+      // setIsFaceDetected(false) // Removed unused state setter
       setFaceAlignment('none')
       setGuideMessage('얼굴을 가이드 안에 맞춰주세요')
       setGuideColor('white')
@@ -1193,7 +1193,7 @@ export default function ARCamera({ className = '', onComplete, isReady = true }:
     }
     
     // 2. 즉시 UI 상태 업데이트 (가벼운 작업)
-    setIsShutterDisabled(true)
+    // setIsShutterDisabled(true) // Removed unused state setter
     setScanningStage('scanning')
     setBottomMessage('피부 표면 스캔 중... 움직이지 마세요')
     setLaserProgress(0)
