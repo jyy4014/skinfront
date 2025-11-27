@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const getSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing required Supabase environment variables')
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey)
-}
+import { createClient } from '@/lib/supabase/route-handler'
 
 // Soft Delete: is_active를 false로 업데이트
 export async function DELETE(
@@ -35,7 +24,7 @@ export async function DELETE(
       )
     }
 
-    const supabase = getSupabaseClient()
+    const supabase = createClient()
 
     // Soft Delete: is_active를 false로 업데이트
     const { data, error } = await supabase

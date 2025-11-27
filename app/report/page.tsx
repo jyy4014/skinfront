@@ -8,7 +8,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import AnalysisLoading from '../components/AnalysisLoading'
 import { useToastContext } from '../components/common/ToastProvider'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 // ============================================
 // 타입 정의
@@ -600,6 +600,7 @@ export default function ReportPage() {
 
   // 사진 업로드 함수
   const uploadMentorImage = async (file: File, type: 'before' | 'after'): Promise<string | null> => {
+    const supabase = createClient()
     try {
       const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
       if (!userId) return null
@@ -638,6 +639,7 @@ export default function ReportPage() {
 
   // 방문 기록 조회 함수
   const checkVisitHistory = async () => {
+    const supabase = createClient()
     try {
       setIsCheckingVisit(true)
       const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')

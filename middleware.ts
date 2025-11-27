@@ -1,10 +1,9 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  const { supabase, res } = createClient(req);
   // 세션 확인 (쿠키 갱신)
   const { data: { session } } = await supabase.auth.getSession();
 

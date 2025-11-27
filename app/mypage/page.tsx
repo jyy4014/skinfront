@@ -5,7 +5,7 @@ import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle, Spa
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { getScoreColor, getGradeColor, formatReservationDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -85,6 +85,7 @@ const [mentorTips, setMentorTips] = useState<MentorTip[]>([])
 
   // Supabase DB에서 분석 기록 불러오기
   const loadAnalysisRecords = useCallback(async () => {
+    const supabase = createClient()
     try {
       setIsLoading(true)
 
@@ -187,6 +188,7 @@ const [mentorTips, setMentorTips] = useState<MentorTip[]>([])
 
   // 멘토 팁 불러오기
   const loadMentorTips = useCallback(async () => {
+    const supabase = createClient()
     try {
       const userId = localStorage.getItem('userId') || localStorage.getItem('user_id')
       if (!userId) {

@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const getSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing required Supabase environment variables')
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey)
-}
+import { createClient } from '@/lib/supabase/route-handler'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +14,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = getSupabaseClient()
+    const supabase = createClient()
 
     // mentor_tips 테이블에 INSERT
     const { data, error } = await supabase

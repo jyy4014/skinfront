@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGeminiModel, SKIN_ANALYSIS_PROMPT } from '@/lib/gemini'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Supabase 클라이언트 생성
-    const supabase = createSupabaseServerClient()
+    const supabase = createClient()
 
     // ============================================
     // 1. 이미지 업로드 (Storage)

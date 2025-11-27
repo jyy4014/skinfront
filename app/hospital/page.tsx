@@ -9,7 +9,7 @@ import ReservationModal from '@/app/components/hospital/ReservationModal'
 import toast from 'react-hot-toast'
 import type { HospitalData, Event } from '@/app/components/RealMap'
 import { formatPrice } from '@/lib/utils'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 // RealMap 컴포넌트를 SSR 없이 동적으로 로드
 const RealMap = dynamic(() => import('@/app/components/RealMap').then((mod) => mod.default), {
@@ -120,6 +120,7 @@ function HospitalPageContent() {
   // 🏥 Supabase에서 내 위치 기반 병원 로드 (RPC 사용)
   const loadNearbyHospitals = useCallback(async (lat: number, lon: number) => {
     setIsLoadingHospitals(true)
+    const supabase = createClient()
     try {
       // RPC 함수로 가까운 병원 조회
       const { data: nearbyHospitals, error: rpcError } = await supabase
@@ -178,6 +179,7 @@ function HospitalPageContent() {
     }
 
     setIsLoadingHospitals(true)
+    const supabase = createClient()
     try {
       const lowerKeyword = keyword.toLowerCase()
 

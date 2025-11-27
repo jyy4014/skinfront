@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { Sparkles, Loader2 } from 'lucide-react'
 
@@ -12,6 +12,8 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     setError(null)
+
+    const supabase = createClient()
 
     try {
       // 환경에 따른 redirect URL 설정

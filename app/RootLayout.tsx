@@ -7,7 +7,7 @@ import ToastProvider from "./components/common/ToastProvider";
 import BottomNav from "./components/common/BottomNav";
 import GlobalScanModal from "./components/common/GlobalScanModal";
 import SplashScreen from "./components/SplashScreen";
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -20,6 +20,7 @@ export default function RootLayout({ children, fontVariable }: RootLayoutProps) 
 
   useEffect(() => {
     let isMounted = true
+    const supabase = createClient()
 
     async function checkSession() {
       try {

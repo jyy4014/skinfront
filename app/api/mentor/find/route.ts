@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const getSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing required Supabase environment variables')
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey)
-}
+import { createClient } from '@/lib/supabase/route-handler'
 
 interface MentorTipRow {
   id: string
@@ -47,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // mentor_tips 테이블에서 매칭된 팁 찾기
-    const supabase = getSupabaseClient()
+    const supabase = createClient()
 
     // 조건: 같은 고민, 나보다 점수 높은 것, 점수 높은 순으로 정렬
     const { data: tips, error } = await supabase
