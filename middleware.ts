@@ -1,141 +1,45 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-// 보호된 경로 (로그인 필요)
-const protectedPaths = ['/', '/mypage', '/report', '/hospital', '/community']
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
 
-// 퍼블릭 경로 (로그인 시 리다이렉트)
-const publicPaths = ['/intro', '/login', '/auth/callback']
+  // 미들웨어용 Supabase 클라이언트 생성
+  const supabase = createMiddlewareClient({ req, res });
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // 정적 파일이나 API 경로는 통과
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.')
-  ) {
-    return NextResponse.next()
-  }
-
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
-
+  // (핵심) 현재 유효한 세션이 있는지 확인 (쿠키를 새로고침 해줌)
   const {
     data: { session },
-  } = await supabase.auth.getSession()
+  } = await supabase.auth.getSession();
 
-  // 추가로 쿠키에서 직접 토큰 확인
-  const accessToken = request.cookies.get('sb-access-token')?.value
-  const refreshToken = request.cookies.get('sb-refresh-token')?.value
+  const url = req.nextUrl.clone();
 
-  const hasAuthSession = !!(session || (accessToken && refreshToken))
-
-  console.log('[Middleware] Session check:', {
-    hasSession: !!session,
-    hasCookies: !!(accessToken && refreshToken),
-    finalResult: hasAuthSession,
-    userId: session?.user?.id
-  })
-
-  // 경로가 보호된 경로인지 확인
-  function isProtectedPath(pathname: string): boolean {
-    return protectedPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
+  // 1. 로그인 상태인데 -> 인트로/로그인 페이지 접근 시 -> 홈으로 보냄
+  if (session && (url.pathname.startsWith('/login') || url.pathname === '/intro')) {
+    url.pathname = '/';
+    return NextResponse.redirect(url);
   }
 
-  // 경로가 퍼블릭 경로인지 확인
-  function isPublicPath(pathname: string): boolean {
-    return publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
-  }
+  // 2. 비로그인 상태인데 -> 보호된 페이지 접근 시 -> 인트로(또는 로그인)로 보냄
+  // (보호할 경로들을 배열로 관리)
+  const protectedPaths = ['/', '/mypage', '/report', '/hospital', '/community'];
+  const isProtected = protectedPaths.some(path => url.pathname.startsWith(path));
 
-  // 비로그인 유저가 보호된 경로 접근 시
-  if (!hasAuthSession && isProtectedPath(pathname)) {
-    // intro를 본 적이 있는지 확인
-    const hasSeenIntro = request.cookies.get('has_seen_intro')?.value === 'true'
-
-    if (hasSeenIntro) {
-      // 이미 intro를 봤으면 login으로
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(loginUrl)
-    } else {
-      // intro를 안 봤으면 intro로
-      const introUrl = new URL('/intro', request.url)
-      introUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(introUrl)
+  if (!session && isProtected) {
+    // 단, 콜백 경로는 제외해야 무한루프 안 빠짐
+    if (!url.pathname.startsWith('/auth/callback')) {
+       url.pathname = '/intro'; // 또는 /login
+       return NextResponse.redirect(url);
     }
   }
 
-  // 로그인 유저가 퍼블릭 경로 접근 시
-  if (hasAuthSession && isPublicPath(pathname)) {
-    // 홈으로 리다이렉트
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  return response
+  // 위 경우가 아니면 원래 가려던 곳으로 통과
+  return res;
 }
 
+// 미들웨어가 적용될 경로 설정 (정적 파일, 이미지 등 제외)
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
-}
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+};
 
