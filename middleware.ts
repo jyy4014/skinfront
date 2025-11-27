@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // 보호된 경로 (로그인 필요)
 const protectedPaths = ['/', '/mypage', '/report', '/hospital', '/community']
@@ -8,56 +8,8 @@ const protectedPaths = ['/', '/mypage', '/report', '/hospital', '/community']
 // 퍼블릭 경로 (로그인 시 리다이렉트)
 const publicPaths = ['/intro', '/login', '/auth/callback']
 
-// Supabase 세션 확인
-async function hasSession(request: NextRequest): Promise<boolean> {
-  try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('Supabase 환경 변수가 설정되지 않았습니다.')
-      return false
-    }
-
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll() {
-            // middleware에서는 응답 객체가 없으므로 쿠키를 설정하지 않습니다.
-          },
-        },
-      }
-    )
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    return !!session
-  } catch (error) {
-    console.error('Session check error:', error)
-    return false
-  }
-}
-
-// 경로가 보호된 경로인지 확인
-function isProtectedPath(pathname: string): boolean {
-  return protectedPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
-}
-
-// 경로가 퍼블릭 경로인지 확인
-function isPublicPath(pathname: string): boolean {
-  return publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const hasAuthSession = await hasSession(request)
 
   // 정적 파일이나 API 경로는 통과
   if (
@@ -67,6 +19,74 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.')
   ) {
     return NextResponse.next()
+  }
+
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const hasAuthSession = !!session
+
+  // 경로가 보호된 경로인지 확인
+  function isProtectedPath(pathname: string): boolean {
+    return protectedPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
+  }
+
+  // 경로가 퍼블릭 경로인지 확인
+  function isPublicPath(pathname: string): boolean {
+    return publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))
   }
 
   // 비로그인 유저가 보호된 경로 접근 시
@@ -93,7 +113,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
