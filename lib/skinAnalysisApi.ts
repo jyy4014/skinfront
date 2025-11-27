@@ -22,27 +22,72 @@ export interface GeminiAnalysisResponse {
 }
 
 /**
- * Gemini API를 통한 피부 분석
+ * 실시간 분석 진행 상태 타입
+ */
+export interface AnalysisProgress {
+  stage: string
+  progress: number
+  message: string
+  timestamp: number
+}
+
+/**
+ * Gemini API를 통한 피부 분석 (실시간 진행 상태 지원)
  * @param imageBase64 - Base64 인코딩된 이미지
  * @param userId - 사용자 ID (선택)
+ * @param onProgress - 진행 상태 콜백 함수 (선택)
  * @returns 분석 결과
  */
 export async function analyzeWithGemini(
   imageBase64: string,
-  userId?: string
+  userId?: string,
+  onProgress?: (progress: AnalysisProgress) => void
 ): Promise<RealSkinAnalysisResult> {
+  // 실시간 진행 상태 수신을 위한 EventSource 설정
+  let eventSource: EventSource | null = null
+
   try {
-    console.log('🤖 [Gemini API] Calling /api/analyze...')
-    
+    console.log('🤖 [Gemini API] Starting analysis with real-time progress...')
+    const analysisBody = onProgress ? {
+      image: imageBase64,
+      userId: userId || null,
+      analysisId: `analysis_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // 진행 상태 추적용 ID
+    } : {
+      image: imageBase64,
+      userId: userId || null,
+    }
+
+    if (onProgress && 'analysisId' in analysisBody) {
+      console.log('🤖 [Gemini API] Setting up progress streaming:', analysisBody.analysisId)
+
+      eventSource = new EventSource(`/api/analyze/progress?id=${analysisBody.analysisId}`)
+
+      eventSource.onmessage = (event) => {
+        try {
+          const progress: AnalysisProgress = JSON.parse(event.data)
+          console.log('🤖 [Gemini API] Progress update:', progress)
+          onProgress(progress)
+        } catch (error) {
+          console.warn('🤖 [Gemini API] Failed to parse progress:', error)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.warn('🤖 [Gemini API] Progress stream error:', error)
+      }
+
+      eventSource.addEventListener('complete', () => {
+        console.log('🤖 [Gemini API] Progress streaming complete')
+        eventSource?.close()
+      })
+    }
+
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        image: imageBase64,
-        userId: userId || null,
-      }),
+      body: JSON.stringify(analysisBody),
     })
 
     if (!response.ok) {
@@ -53,6 +98,12 @@ export async function analyzeWithGemini(
 
     const data: GeminiAnalysisResponse = await response.json()
     console.log('🤖 [Gemini API] Response:', data)
+
+    // EventSource 정리
+    if (eventSource) {
+      eventSource.close()
+      console.log('🤖 [Gemini API] EventSource closed')
+    }
 
     // 응답 검증
     if (data.error) {
@@ -87,6 +138,13 @@ export async function analyzeWithGemini(
     return result
   } catch (error) {
     console.error('❌ [Gemini API] Failed:', error)
+
+    // 에러 발생 시 EventSource 정리
+    if (eventSource) {
+      eventSource.close()
+      console.log('🤖 [Gemini API] EventSource closed due to error')
+    }
+
     throw error
   }
 }

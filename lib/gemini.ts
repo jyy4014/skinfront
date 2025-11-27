@@ -20,7 +20,7 @@ export function getGeminiModel() {
   const genAI = getGeminiClient()
   
   return genAI.getGenerativeModel({
-    model: 'gemini-2.5-pro-preview-06-05',
+    model: 'gemini-2.0-flash-exp',
     generationConfig: {
       responseMimeType: 'application/json', // JSON 강제 출력 모드 (에러 방지 핵심)
       temperature: 0.4, // 창의성 낮춤 -> 분석의 일관성/정확도 높임
