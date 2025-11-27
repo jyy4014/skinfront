@@ -12,23 +12,47 @@ export default function AuthCallbackPage() {
         const handleCallback = async () => {
             console.log('[Auth Callback Client] Starting client-side callback handler')
             console.log('[Auth Callback Client] Current URL:', window.location.href)
+            console.log('[Auth Callback Client] Search params:', window.location.search)
             console.log('[Auth Callback Client] Hash:', window.location.hash)
 
             try {
-                // Implicit 플로우: URL fragment에 세션 정보가 포함됨
-                // Supabase가 자동으로 fragment를 처리하므로 getSession()으로 확인
-                const { data: { session }, error } = await supabase.auth.getSession()
+                const code = searchParams.get('code')
+                const errorParam = searchParams.get('error')
+
+                // 에러가 있으면 처리
+                if (errorParam) {
+                    console.error('[Auth Callback Client] OAuth error:', errorParam)
+                    router.push('/login?error=oauth_failed')
+                    return
+                }
+
+                // Code 플로우 (PKCE/Google OAuth): code 파라미터가 있으면 교환
+                if (code) {
+                    console.log('[Auth Callback Client] Code flow detected, exchanging code...')
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+                    if (error) {
+                        console.error('[Auth Callback Client] Code exchange error:', error)
+                        router.push('/login?error=exchange_failed')
+                        return
+                    }
+
+                    console.log('[Auth Callback Client] Code exchange successful')
+                }
+
+                // 세션 확인 (양쪽 플로우 모두)
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
                 console.log('[Auth Callback Client] Session check:', {
                     hasSession: !!session,
-                    error: error?.message,
+                    error: sessionError?.message,
                     userId: session?.user?.id,
                     accessToken: session?.access_token ? 'present' : 'missing'
                 })
 
-                if (error) {
-                    console.error('[Auth Callback Client] Auth error:', error)
-                    router.push('/login?error=auth_failed')
+                if (sessionError) {
+                    console.error('[Auth Callback Client] Session error:', sessionError)
+                    router.push('/login?error=session_error')
                     return
                 }
 
@@ -37,7 +61,16 @@ export default function AuthCallbackPage() {
                     router.push('/')
                 } else {
                     console.log('[Auth Callback Client] No valid session found')
-                    router.push('/login?error=no_session')
+                    // 잠시 기다렸다가 다시 확인 (비동기 처리 시간 고려)
+                    setTimeout(() => {
+                        supabase.auth.getSession().then(({ data: { session: retrySession } }) => {
+                            if (retrySession) {
+                                router.push('/')
+                            } else {
+                                router.push('/login?error=no_session')
+                            }
+                        })
+                    }, 1000)
                 }
             } catch (err) {
                 console.error('[Auth Callback Client] Unexpected error:', err)
@@ -48,7 +81,7 @@ export default function AuthCallbackPage() {
         // 페이지 로드 후 바로 실행하되 약간의 지연을 줌
         const timer = setTimeout(handleCallback, 500)
         return () => clearTimeout(timer)
-    }, [router])
+    }, [router, searchParams])
 
     return (
         <div className="min-h-screen bg-[#121212] flex items-center justify-center">

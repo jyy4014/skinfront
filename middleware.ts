@@ -77,7 +77,18 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  const hasAuthSession = !!session
+  // 추가로 쿠키에서 직접 토큰 확인
+  const accessToken = request.cookies.get('sb-access-token')?.value
+  const refreshToken = request.cookies.get('sb-refresh-token')?.value
+
+  const hasAuthSession = !!(session || (accessToken && refreshToken))
+
+  console.log('[Middleware] Session check:', {
+    hasSession: !!session,
+    hasCookies: !!(accessToken && refreshToken),
+    finalResult: hasAuthSession,
+    userId: session?.user?.id
+  })
 
   // 경로가 보호된 경로인지 확인
   function isProtectedPath(pathname: string): boolean {
