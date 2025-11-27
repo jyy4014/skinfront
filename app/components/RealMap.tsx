@@ -53,49 +53,68 @@ interface RealMapProps {
   onMapReady?: (map: L.Map) => void
 }
 
-// 커스텀 마커 아이콘 생성 (민트색 말풍선 핀)
+// 커스텀 마커 아이콘 생성 (네온 민트색 빛나는 핀)
 const createCustomIcon = (hospital: HospitalData, isSelected = false): L.DivIcon => {
   // 최저가 계산
   const minPrice = Math.min(...hospital.events.map((e) => e.eventPrice))
 
   const iconHtml = `
-    <div class="relative">
-      <div class="${
-        isSelected ? 'bg-white text-black' : 'bg-[#00FFC2] text-black'
-      } font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap text-sm relative z-10">
-        ${formatPrice(minPrice)}~
+    <div class="relative animate-pulse">
+      <!-- 빛 번짐 효과 -->
+      <div class="absolute inset-0 bg-[#00FFC2] rounded-full blur-md opacity-60 scale-150"></div>
+
+      <!-- 메인 마커 -->
+      <div class="relative bg-gradient-to-br from-[#00FFC2] to-[#00E6B0] text-black font-bold px-3 py-2 rounded-full shadow-2xl border-2 border-white/20 whitespace-nowrap text-sm backdrop-blur-sm">
+        <div class="flex items-center gap-1">
+          <span class="text-xs opacity-80">₩</span>
+          <span>${formatPrice(minPrice)}</span>
+        </div>
       </div>
-      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 ${
-        isSelected ? 'bg-white' : 'bg-[#00FFC2]'
-      } rotate-45 border-r-2 border-b-2 border-white"></div>
+
+      <!-- 빛나는 테두리 효과 -->
+      <div class="absolute inset-0 bg-[#00FFC2] rounded-full animate-ping opacity-20"></div>
+
+      <!-- 핀 부분 -->
+      <div class="absolute left-1/2 -translate-x-1/2 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#00FFC2] drop-shadow-lg"></div>
     </div>
   `
 
   return L.divIcon({
     html: iconHtml,
-    className: 'custom-price-marker',
-    iconSize: [80, 40],
-    iconAnchor: [40, 40],
-    popupAnchor: [0, -40],
+    className: 'neon-price-marker',
+    iconSize: [100, 60],
+    iconAnchor: [50, 55],
+    popupAnchor: [0, -55],
   })
 }
 
-// 커스텀 클러스터 아이콘 생성 함수
+// 커스텀 클러스터 아이콘 생성 함수 (네온 효과)
 const createCustomClusterIcon = (cluster: any): L.DivIcon => {
   const count = cluster.getChildCount()
-  const size = count < 10 ? 40 : count < 100 ? 50 : 60
+  const size = count < 10 ? 45 : count < 100 ? 55 : 65
 
   const iconHtml = `
-    <div class="custom-cluster-icon" style="width: ${size}px; height: ${size}px; background-color: #121212; border: 2px solid #00FFC2; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 10px 15px rgba(0, 0, 0, 0.2);">
-      <span style="color: #00FFC2; font-weight: bold; font-size: ${size < 50 ? '14px' : '16px'};">
-        ${count}
-      </span>
+    <div class="relative animate-pulse">
+      <!-- 빛 번짐 효과 -->
+      <div class="absolute inset-0 bg-[#00FFC2] rounded-full blur-lg opacity-30 scale-125"></div>
+
+      <!-- 메인 클러스터 -->
+      <div class="relative bg-gradient-to-br from-[#121212] to-[#1A2333] border-2 border-[#00FFC2] rounded-full flex items-center justify-content-center shadow-2xl backdrop-blur-sm"
+           style="width: ${size}px; height: ${size}px; box-shadow: 0 0 20px rgba(0, 255, 194, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);">
+        <span class="text-[#00FFC2] font-bold drop-shadow-lg"
+              style="font-size: ${size < 50 ? '16px' : '18px'}; text-shadow: 0 0 10px rgba(0, 255, 194, 0.8);">
+          ${count}
+        </span>
+      </div>
+
+      <!-- 빛나는 링 효과 -->
+      <div class="absolute inset-0 border-2 border-[#00FFC2] rounded-full animate-ping opacity-20"></div>
     </div>
   `
 
   return L.divIcon({
     html: iconHtml,
-    className: 'custom-cluster-icon-wrapper',
+    className: 'neon-cluster-icon-wrapper',
     iconSize: L.point(size, size),
     iconAnchor: L.point(size / 2, size / 2),
   })
@@ -245,17 +264,17 @@ const center = myLocation || defaultCenter
         center={defaultCenter}
         zoom={zoom}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
-        zoomControl={false}
+        zoomControl={true}
         scrollWheelZoom={true}
         className="leaflet-container"
       >
-        {/* Standard OpenStreetMap 타일 레이어 (필터로 다크 모드 변환) */}
+        {/* 다크 모드 지도 타일 레이어 */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          subdomains="abc"
+          attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
+          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
+          subdomains="abcd"
           maxZoom={19}
-          className="map-tiles"
+          className="dark-map-tiles"
         />
 
         {/* 지도 중심 조정 및 flyTo 핸들링 */}
@@ -292,20 +311,22 @@ const center = myLocation || defaultCenter
         </MarkerClusterGroup>
       </MapContainer>
 
-      {/* 🎯 내 위치로 이동 버튼 (우측 하단) */}
+      {/* 🎯 내 위치로 이동 버튼 (네온 스타일) */}
       <button
         onClick={getCurrentLocation}
         disabled={isLocating}
-        className={`absolute bottom-[42%] right-4 z-20 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:bg-gray-50 active:scale-95 ${
+        className={`absolute bottom-[42%] right-4 z-20 w-14 h-14 bg-[#121212]/80 backdrop-blur-xl border border-[#00FFC2]/30 rounded-full shadow-2xl flex items-center justify-center transition-all hover:bg-[#1A2333]/90 hover:border-[#00FFC2]/50 hover:shadow-[0_0_20px_rgba(0,255,194,0.3)] active:scale-95 ${
           isLocating ? 'opacity-70' : ''
         }`}
         aria-label="내 위치로 이동"
         title={locationError || '내 위치로 이동'}
       >
         {isLocating ? (
-          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+          <Loader2 className="w-6 h-6 text-[#00FFC2] animate-spin drop-shadow-[0_0_8px_rgba(0,255,194,0.6)]" />
         ) : (
-          <Crosshair className={`w-5 h-5 ${myLocation ? 'text-blue-500' : 'text-gray-500'}`} />
+          <Crosshair className={`w-6 h-6 drop-shadow-[0_0_8px_rgba(0,255,194,0.6)] ${
+            myLocation ? 'text-[#00FFC2]' : 'text-gray-400'
+          }`} />
         )}
       </button>
     </div>

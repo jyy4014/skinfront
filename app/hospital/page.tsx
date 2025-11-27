@@ -46,6 +46,84 @@ interface SupabaseEvent {
   is_representative: boolean
 }
 
+// 다크 모드 지도 스타일링
+const mapStyles = `
+  <style>
+    /* Leaflet 컨테이너 다크 모드 */
+    .leaflet-container {
+      background-color: #121212 !important;
+    }
+
+    /* Leaflet 컨트롤 다크 모드 */
+    .leaflet-control-container .leaflet-control {
+      background-color: rgba(18, 18, 18, 0.9) !important;
+      border: 1px solid rgba(0, 255, 194, 0.3) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .leaflet-control-container .leaflet-control a {
+      color: #00FFC2 !important;
+      background-color: transparent !important;
+    }
+
+    .leaflet-control-container .leaflet-control a:hover {
+      background-color: rgba(0, 255, 194, 0.1) !important;
+    }
+
+    /* Leaflet 팝업 다크 모드 */
+    .leaflet-popup-content-wrapper {
+      background-color: rgba(18, 18, 18, 0.95) !important;
+      border: 1px solid rgba(0, 255, 194, 0.3) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+      backdrop-filter: blur(10px) !important;
+    }
+
+    .leaflet-popup-content {
+      color: #ffffff !important;
+    }
+
+    .leaflet-popup-tip {
+      background-color: rgba(18, 18, 18, 0.95) !important;
+    }
+
+    /* 네온 마커 애니메이션 */
+    .neon-price-marker {
+      filter: drop-shadow(0 0 8px rgba(0, 255, 194, 0.6));
+    }
+
+    .neon-cluster-icon-wrapper {
+      filter: drop-shadow(0 0 12px rgba(0, 255, 194, 0.8));
+    }
+
+    /* 지도 타일 다크 모드 강화 */
+    .dark-map-tiles {
+      filter: brightness(0.8) contrast(1.2) saturate(0.8);
+    }
+
+    /* Leaflet 줌 컨트롤 커스터마이징 */
+    .leaflet-control-zoom-in,
+    .leaflet-control-zoom-out {
+      background-color: rgba(18, 18, 18, 0.8) !important;
+      border: 1px solid rgba(0, 255, 194, 0.3) !important;
+      color: #00FFC2 !important;
+      font-weight: bold !important;
+      border-radius: 6px !important;
+      margin-bottom: 2px !important;
+      width: 32px !important;
+      height: 32px !important;
+      line-height: 30px !important;
+    }
+
+    .leaflet-control-zoom-in:hover,
+    .leaflet-control-zoom-out:hover {
+      background-color: rgba(0, 255, 194, 0.1) !important;
+      box-shadow: 0 0 10px rgba(0, 255, 194, 0.3) !important;
+    }
+  </style>
+`;
+
 // Supabase 데이터를 HospitalData 형식으로 변환
 function transformToHospitalData(hospital: SupabaseHospital, searchKeyword?: string): HospitalData {
   const events: Event[] = hospital.hospital_events.map((e) => {
@@ -409,6 +487,9 @@ function HospitalPageContent() {
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
+      {/* 다크 모드 지도 스타일링 */}
+      <div dangerouslySetInnerHTML={{ __html: mapStyles }} />
+
       {/* 인터랙티브 지도 (RealMap) */}
       <RealMap
         hospitals={hospitals}
