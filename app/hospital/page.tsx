@@ -579,20 +579,20 @@ function HospitalPageContent() {
         initial={{ y: '100%' }}
         animate={{ y: '35%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="absolute bottom-0 left-0 right-0 z-10 bg-white rounded-t-3xl shadow-2xl max-w-[430px] mx-auto"
+        className="absolute bottom-0 left-0 right-0 z-10 bg-[#121212]/90 backdrop-blur-md rounded-t-3xl shadow-2xl max-w-[430px] mx-auto border-t border-white/10"
         style={{ height: '65%' }}
       >
         {/* 드래그 핸들 */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+          <div className="w-12 h-1 bg-white/30 rounded-full" />
         </div>
 
         {/* 내용 */}
         <div ref={hospitalListRef} className="px-4 pb-6 overflow-y-auto h-full">
           {/* 검색 결과 표시 */}
           {searchKeyword && (
-            <div className="mb-4 text-sm text-gray-600">
-              <span className="font-semibold text-gray-900">&lsquo;{searchKeyword}&rsquo;</span> 검색 결과 {hospitals.length}개
+            <div className="mb-4 text-sm text-gray-400">
+              <span className="font-semibold text-white">&lsquo;{searchKeyword}&rsquo;</span> 검색 결과 {hospitals.length}개
             </div>
           )}
 
@@ -600,17 +600,17 @@ function HospitalPageContent() {
           {isLoadingHospitals ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-gray-100 rounded-2xl p-5 animate-pulse">
-                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-3" />
-                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
-                  <div className="h-20 bg-gray-200 rounded" />
+                <div key={i} className="bg-white/5 rounded-2xl p-5 animate-pulse border border-white/10">
+                  <div className="h-6 bg-white/10 rounded w-1/2 mb-3" />
+                  <div className="h-4 bg-white/10 rounded w-1/3 mb-4" />
+                  <div className="h-20 bg-white/10 rounded" />
                 </div>
               ))}
             </div>
           ) : hospitals.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-              <MapPin className="w-12 h-12 mb-4" />
-              <p className="text-lg font-semibold">주변 병원이 없습니다</p>
+              <MapPin className="w-12 h-12 mb-4 text-[#00FFC2]" />
+              <p className="text-lg font-semibold text-white">주변 병원이 없습니다</p>
               <p className="text-sm mt-2">다른 지역을 검색해보세요</p>
             </div>
           ) : (
@@ -625,8 +625,8 @@ function HospitalPageContent() {
                 <div
                   key={pin.id}
                   id={`hospital-${pin.id}`}
-                  className={`bg-white rounded-2xl mb-4 border-2 shadow-sm transition-all overflow-hidden ${
-                    pin.isHighlighted ? 'border-[#00FFC2] bg-gradient-to-br from-[#00FFC2]/5 to-transparent' : 'border-gray-100'
+                  className={`bg-white/5 backdrop-blur-sm rounded-2xl mb-4 border-2 shadow-lg transition-all overflow-hidden ${
+                    pin.isHighlighted ? 'border-[#00FFC2] bg-gradient-to-br from-[#00FFC2]/10 to-transparent shadow-[0_0_15px_rgba(0,255,194,0.1)]' : 'border-white/10'
                   } ${selectedHospitalId === pin.id ? 'ring-2 ring-[#00FFC2]' : ''}`}
                 >
                   {/* 클릭 가능한 영역 */}
@@ -638,50 +638,43 @@ function HospitalPageContent() {
                   >
                     {/* 병원명 및 할인 뱃지 */}
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-bold text-gray-900">{pin.name}</h3>
+                      <h3 className="text-xl font-bold text-white">{pin.name}</h3>
                       {pin.isHighlighted && (
-                        <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                        <span className="px-2 py-1 bg-red-500/10 text-red-500 text-xs font-bold rounded-full border border-red-500/30">
                           🔥 특가
                         </span>
                       )}
                     </div>
 
                     {/* 정보 (거리/평점) */}
-                    <div className="flex items-center gap-3 mb-4 text-gray-600 text-sm">
+                    <div className="flex items-center gap-3 mb-4 text-gray-400 text-sm">
                       <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
+                        <MapPin className="w-4 h-4 text-[#00FFC2]" />
                         <span>{pin.distance > 0 ? `${pin.distance}m` : '거리 정보 없음'}</span>
                       </div>
-                      <span>|</span>
+                      <span className="text-gray-600">|</span>
                       <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="font-semibold text-gray-900">{pin.rating}</span>
+                        <Star className="w-4 h-4 fill-[#00FFC2] text-[#00FFC2]" />
+                        <span className="font-semibold text-white">{pin.rating}</span>
                         <span className="text-gray-500">({pin.reviewCount} reviews)</span>
                       </div>
                     </div>
 
-                    {/* 대표 이벤트 가격 카드 */}
-                    <div className="mb-4 p-3 rounded-xl border-2 bg-gradient-to-r from-[#00FFC2]/10 to-[#00E6B8]/10 border-[#00FFC2]">
+                    {/* 가격 섹션 - 세련된 텍스트 중심 디자인 */}
+                    <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-900">{mainEvent.name}</span>
-                          <span className="px-1.5 py-0.5 bg-[#00FFC2] text-black text-xs font-bold rounded">
-                            대표
-                          </span>
-                        </div>
-                        <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded">
-                          -{mainEvent.discountRate}%
+                        <span className="px-2 py-1 bg-[#00FFC2]/10 text-[#00FFC2] text-xs font-semibold rounded border border-[#00FFC2]/20">
+                          {mainEvent.name}
+                        </span>
+                        <span className="text-rose-500 text-sm font-bold">
+                          {mainEvent.discountRate}%↓
                         </span>
                       </div>
-                      {/* 가격 정보 - flex items-end로 밑라인 맞춤 */}
-                      <div className="flex items-end">
-                        <span className="text-red-500 font-extrabold text-lg mr-2">
-                          -{mainEvent.discountRate}%
-                        </span>
-                        <span className="text-[#00FFC2] font-black text-2xl">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[#00FFC2] text-3xl font-black">
                           {formatPrice(mainEvent.eventPrice)}
                         </span>
-                        <span className="text-gray-500 text-sm line-through ml-2">
+                        <span className="text-gray-600 text-lg line-through">
                           {formatPrice(mainEvent.originalPrice)}
                         </span>
                       </div>
@@ -697,23 +690,23 @@ function HospitalPageContent() {
                         opacity: expandedId === pin.id ? 1 : 0,
                       }}
                       transition={{ duration: 0.3 }}
-                      className="overflow-hidden bg-gray-800/50"
+                      className="overflow-hidden bg-white/5 border-t border-white/10"
                     >
                       <div className="p-3 space-y-2">
                         {otherEvents.map((event: Event, eventIndex: number) => (
                           <div
                             key={eventIndex}
-                            className="flex flex-row justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-200"
+                            className="flex flex-row justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10"
                           >
-                            <span className="text-sm font-semibold text-gray-900">{event.name}</span>
+                            <span className="text-sm font-semibold text-white">{event.name}</span>
                             <div className="flex items-end">
-                              <span className="text-red-500 font-extrabold text-lg mr-2">
-                                -{event.discountRate}%
+                              <span className="text-rose-500 font-bold text-sm mr-2">
+                                {event.discountRate}%↓
                               </span>
-                              <span className="text-[#00FFC2] font-black text-2xl">
+                              <span className="text-[#00FFC2] font-black text-lg">
                                 {formatPrice(event.eventPrice)}
                               </span>
-                              <span className="text-gray-500 text-sm line-through ml-2">
+                              <span className="text-gray-600 text-sm line-through ml-2">
                                 {formatPrice(event.originalPrice)}
                               </span>
                             </div>
@@ -734,7 +727,7 @@ function HospitalPageContent() {
                           toast.error('전화번호가 등록되지 않았습니다')
                         }
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-colors"
                     >
                       <Phone className="w-4 h-4" />
                       전화하기
@@ -744,10 +737,10 @@ function HospitalPageContent() {
                         e.stopPropagation()
                         setIsReservationModalOpen(true)
                       }}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3.5 font-bold rounded-xl transition-colors shadow-md ${
+                      className={`flex-1 flex items-center justify-center gap-2 py-3.5 font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(0,255,194,0.4)] ${
                         pin.isHighlighted
-                          ? 'bg-[#00FFC2] text-black hover:bg-[#00E6B8]'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-gradient-to-r from-[#00FFC2] to-teal-400 text-black hover:shadow-[0_0_20px_rgba(0,255,194,0.6)]'
+                          : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-500 hover:to-gray-600'
                       }`}
                     >
                       <Calendar className="w-4 h-4" />
