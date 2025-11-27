@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle, Sparkles } from 'lucide-react'
+import { User, Calendar, TrendingUp, Settings, Ticket, PenLine, CheckCircle, Sparkles, LogOut } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -371,6 +371,42 @@ const [mentorTips, setMentorTips] = useState<MentorTip[]>([])
     }
   }
 
+  // 로그아웃 핸들러
+  const handleLogout = async () => {
+    if (!confirm('정말 로그아웃하시겠습니까?')) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error('Logout error:', error)
+        toast.error('로그아웃 중 오류가 발생했습니다.')
+        return
+      }
+
+      // 로컬 스토리지 정리
+      try {
+        localStorage.removeItem('userName')
+        localStorage.removeItem('userId')
+        localStorage.removeItem('reservations')
+        localStorage.removeItem('latest_analysis_result')
+        localStorage.removeItem('skinAnalysisImage')
+        localStorage.removeItem('has_seen_intro')
+      } catch (storageError) {
+        console.warn('Failed to clear localStorage:', storageError)
+      }
+
+      toast.success('로그아웃되었습니다.')
+      router.replace('/login')
+    } catch (error) {
+      console.error('Unexpected logout error:', error)
+      toast.error('로그아웃 중 오류가 발생했습니다.')
+    }
+  }
+
   // 개발용 더미 데이터 생성
   const createDummyReservation = () => {
     const dummy: Reservation = {
@@ -409,13 +445,23 @@ const [mentorTips, setMentorTips] = useState<MentorTip[]>([])
               <p className="text-gray-400 text-sm mt-1">피부 건강을 함께 관리해요</p>
             </div>
           </div>
-          <button
-            onClick={() => router.push('/mypage/settings')}
-            className="p-2 rounded-full hover:bg-gray-800/50 transition-colors"
-            aria-label="설정"
-          >
-            <Settings className="w-6 h-6 text-gray-400 hover:text-[#00FFC2] transition-colors" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/mypage/settings')}
+              className="p-2 rounded-full hover:bg-gray-800/50 transition-colors"
+              aria-label="설정"
+            >
+              <Settings className="w-6 h-6 text-gray-400 hover:text-[#00FFC2] transition-colors" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-full hover:bg-red-900/20 transition-colors"
+              aria-label="로그아웃"
+              title="로그아웃"
+            >
+              <LogOut className="w-6 h-6 text-gray-400 hover:text-red-400 transition-colors" />
+            </button>
+          </div>
         </div>
 
         {/* 누적 진단 횟수 뱃지 */}
