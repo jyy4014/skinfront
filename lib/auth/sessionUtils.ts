@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client';
 export interface SessionInfo {
   isValid: boolean;
   userId?: string;
-  expiresAt?: number;
+  expiresAt?: number | null;
   error?: string;
 }
 
