@@ -12,12 +12,27 @@ export async function POST(request: NextRequest) {
   console.log('[ANALYZE API] 분석 ID:', analysisId)
 
   try {
-    // API 키 검증
-    console.log('[ANALYZE API] GEMINI_API_KEY 존재 여부:', !!process.env.GEMINI_API_KEY)
+    // API 키 검증 (디버깅용 상세 로그)
+    const hasApiKey = !!process.env.GEMINI_API_KEY
+    const apiKeyLength = process.env.GEMINI_API_KEY?.length || 0
+    const apiKeyPrefix = process.env.GEMINI_API_KEY?.substring(0, 10) || 'N/A'
+    
+    console.log('[ANALYZE API] ===== 환경변수 체크 =====')
+    console.log('[ANALYZE API] GEMINI_API_KEY 존재 여부:', hasApiKey)
+    console.log('[ANALYZE API] GEMINI_API_KEY 길이:', apiKeyLength)
+    console.log('[ANALYZE API] GEMINI_API_KEY 앞 10자리:', apiKeyPrefix + '...')
+    console.log('[ANALYZE API] NODE_ENV:', process.env.NODE_ENV)
+    console.log('[ANALYZE API] VERCEL:', process.env.VERCEL)
+    console.log('[ANALYZE API] VERCEL_ENV:', process.env.VERCEL_ENV)
+    
     if (!process.env.GEMINI_API_KEY) {
-      console.error('[ANALYZE API] GEMINI_API_KEY가 설정되지 않음')
+      console.error('[ANALYZE API] ❌ GEMINI_API_KEY가 설정되지 않음')
+      console.error('[ANALYZE API] 환경변수 목록:', Object.keys(process.env).filter(k => k.includes('GEMINI') || k.includes('API')))
       return NextResponse.json(
-        { error: '서버 설정 오류: GEMINI_API_KEY가 설정되지 않았습니다.' },
+        { 
+          error: '서버 설정 오류: GEMINI_API_KEY가 설정되지 않았습니다.',
+          hint: 'Vercel 대시보드에서 환경변수를 확인하고 재배포해주세요.'
+        },
         { status: 500 }
       )
     }

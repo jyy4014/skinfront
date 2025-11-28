@@ -7,3 +7,4 @@ export const createClient = (req: NextRequest) => {
   const supabase = createMiddlewareClient({ req, res });
   return { supabase, res };
 };
+
