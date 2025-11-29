@@ -28,18 +28,12 @@ export default function MirrorSlider({ comparisonData, onPeriodChange }: MirrorS
                     <h3 className="text-white text-xl font-bold mb-2">
                         피부 변화를 추적해보세요
                     </h3>
-                    <p className="text-gray-400 text-sm mb-6">
+                    <p className="text-gray-400 text-sm">
                         {comparisonData.afterRecord
                             ? '한 번 더 스캔하면 변화를 비교할 수 있어요'
-                            : '첫 피부 사진을 찍어보세요'
+                            : '꾸준한 기록으로 피부 변화를 확인하세요'
                         }
                     </p>
-                    <button
-                        onClick={() => window.dispatchEvent(new CustomEvent('scan-button-click'))}
-                        className="px-6 py-3 bg-gradient-to-r from-[#00FFC2] to-[#00E6B8] text-black font-bold rounded-xl hover:scale-105 transition-transform"
-                    >
-                        {comparisonData.afterRecord ? '지금 스캔하기' : '첫 스캔 시작하기'}
-                    </button>
                 </div>
             </div>
         )
@@ -110,8 +104,8 @@ export default function MirrorSlider({ comparisonData, onPeriodChange }: MirrorS
                         key={period}
                         onClick={() => handlePeriodChange(period)}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPeriod === period
-                                ? 'bg-[#00FFC2]/20 text-[#00FFC2] border-2 border-[#00FFC2]/50'
-                                : 'bg-gray-800/50 text-gray-400 border-2 border-gray-700/50 hover:border-gray-600'
+                            ? 'bg-[#00FFC2]/20 text-[#00FFC2] border-2 border-[#00FFC2]/50'
+                            : 'bg-gray-800/50 text-gray-400 border-2 border-gray-700/50 hover:border-gray-600'
                             }`}
                     >
                         {period === '7d' && '7일'}

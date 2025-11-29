@@ -12,6 +12,9 @@ import MirrorSlider from './components/home/MirrorSlider'
 import QuickStats from './components/home/QuickStats'
 import MiniTimeline from './components/home/MiniTimeline'
 import { getBestComparisonPeriod, getComparisonData, type ComparisonPeriod } from '../lib/utils/comparison'
+import { isToday } from '../lib/utils/date'
+import SmartCTA from './components/home/SmartCTA'
+import InsightCards from './components/home/InsightCards'
 
 // ==================== 타입 정의 ====================
 interface RoutineItem {
@@ -303,6 +306,43 @@ export default function HomePage() {
     window.dispatchEvent(new CustomEvent('scan-button-click'))
   }, [])
 
+  // Smart CTA 설정
+  const ctaConfig = useMemo(() => {
+    if (allRecords.length === 0) {
+      return {
+        text: '첫 스캔 시작하기',
+        icon: '🚀',
+        variant: 'primary' as const,
+        message: '피부 변화 추적을 시작해보세요'
+      }
+    }
+
+    if (allRecords.length === 1) {
+      return {
+        text: '비교하기 위한 다음 스캔',
+        icon: '📸',
+        variant: 'primary' as const,
+        message: '변화를 확인하려면 한 번 더 스캔해보세요!'
+      }
+    }
+
+    // 마지막 스캔이 오늘이면
+    if (isToday(allRecords[0].date)) {
+      return {
+        text: '오늘 기록 확인하기',
+        icon: '✅',
+        variant: 'secondary' as const,
+        href: '/mypage'
+      }
+    }
+
+    return {
+      text: '오늘 피부 기록하기',
+      icon: '📸',
+      variant: 'primary' as const,
+    }
+  }, [allRecords])
+
   // ==================== 계산된 값 ====================
 
   const greeting = isMounted ? getTimeBasedGreeting(currentHour) : { text: '안녕하세요', emoji: '👋' }
@@ -319,8 +359,8 @@ export default function HomePage() {
       {/* 스마트 헤더 */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${scrollY > 10
-            ? 'bg-gray-900/80 backdrop-blur-md border-b border-gray-800'
-            : 'bg-transparent'
+          ? 'bg-gray-900/80 backdrop-blur-md border-b border-gray-800'
+          : 'bg-transparent'
           }`}
       >
         {/* 메인 헤더 */}
@@ -401,18 +441,22 @@ export default function HomePage() {
           />
         </motion.div>
 
-        {/* 📊 Quick Stats */}
+        {/* 📊 Quick Stats or Insights */}
         <motion.div
           variants={{
             hidden: { opacity: 0, y: 20 },
             visible: { opacity: 1, y: 0 },
           }}
         >
-          <QuickStats
-            scanCount={weeklyScans}
-            streak={streak}
-            bestScore={bestScore}
-          />
+          {allRecords.length > 0 ? (
+            <QuickStats
+              scanCount={weeklyScans}
+              streak={streak}
+              bestScore={bestScore}
+            />
+          ) : (
+            <InsightCards />
+          )}
         </motion.div>
 
         {/* 📅 Mini Timeline */}
@@ -427,20 +471,8 @@ export default function HomePage() {
           </motion.div>
         )}
 
-        {/* 🎯 CTA Button - 오늘 피부 기록하기 */}
-        <motion.div
-          variants={{
-            hidden: { opacity: 0, y: 20 },
-            visible: { opacity: 1, y: 0 },
-          }}
-        >
-          <button
-            onClick={openScanModal}
-            className="w-full py-4 bg-gradient-to-r from-[#00FFC2] to-[#00E6B8] text-black font-bold text-lg rounded-2xl hover:scale-[1.02] transition-transform shadow-lg"
-          >
-            📸 오늘 피부 기록하기
-          </button>
-        </motion.div>
+        {/* 🎯 Smart CTA */}
+        <SmartCTA config={ctaConfig} onClick={openScanModal} />
 
         {/* 피부 쌍둥이 위젯 */}
         <motion.div
@@ -471,8 +503,8 @@ export default function HomePage() {
                     onClick={() => toggleRoutine(item.id)}
                     whileTap={{ scale: 0.95 }}
                     className={`flex-shrink-0 w-32 rounded-xl p-4 border-2 transition-all ${isCompleted
-                        ? 'bg-[#00FFC2]/10 border-[#00FFC2]/50'
-                        : 'bg-gray-800/50 border-gray-700/50'
+                      ? 'bg-[#00FFC2]/10 border-[#00FFC2]/50'
+                      : 'bg-gray-800/50 border-gray-700/50'
                       }`}
                   >
                     <div className="flex flex-col items-center gap-2">
